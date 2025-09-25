@@ -33,6 +33,15 @@ header img {
   width: 60px;
   height: 60px;
   margin-bottom: 0.5rem;
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%   { transform: translate(0px, 0px); }
+  25%  { transform: translate(5px, -5px); }
+  50%  { transform: translate(0px, -10px); }
+  75%  { transform: translate(-5px, -5px); }
+  100% { transform: translate(0px, 0px); }
 }
 
 header h1 {
