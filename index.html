@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta charset="utf-8">
+
+    <title>Find your phenotype from a picture!</title>
+
+    <meta name="description" content="Find which of the anthropological types from humanphenotypes.net are your closest match using a single selfie! All analysis is done on-device, your photo is not sent to any server.">
+    <meta name="author" content="sidstuff">
+
+    <meta property="og:title" content="Find your phenotype from a picture!">
+    <meta property="og:url" content="https://phenotypes.pages.dev">
+    <meta property="og:type" content="website">
+    <meta property="og:description" content="Find which of the anthropological types from humanphenotypes.net are your closest match using a single selfie! All analysis is done on-device, your photo is not sent to any server.">
+    <meta property="og:image" content="https://phenotypes.pages.dev/icon.png">
+    <meta property="og:site_name" content="phenotypes">
+    <meta property="og:locale" content="en_US">
+
+    <link rel="canonical" href="https://phenotypes.pages.dev">
+
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="icon" type="image/x-icon" href="icon.png">
+    <link rel="shortcut icon" href="icon.png" type="image/x-icon">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body><h1><img id="icon" src="icon.png">phenotypes</h1>
+    <h4>Find your phenotype from a picture!</h4>
+    <small><a href="https://github.com/sidstuff/phenotypes">[GitHub]</a> &ndash; by <a href="https://github.com/sidstuff">@sidstuff</a></small>
+    <p>Are you a user of <a href="https://www.reddit.com/r/phenotypes/">r/phenotypes</a>? Been to <a href="http://humanphenotypes.net">humanphenotypes.net</a> and curious about your own ethnic background? This website takes a user-submitted photo and uses facial recognition to compare its similarity to the averaged samples given on <i>Human Phenotypes</i>. All processing is done within the browser and your data never goes to a server, so your privacy is guaranteed.</p>
+    <div id="loader"></div>
+    <div id="loading">Fetching the facial recognition models. . .</div>
+    <small>Select a photo:</small><br>
+    <input accept="image/*" type='file' id="imgInp" />
+    <pre id="imgContainer"></pre>
+    <div id="resultsContainer"></div>
+    <script src="face-api.min.js" defer></script>
+    <script src="script.js" defer></script>
+  </body>
+</html>
