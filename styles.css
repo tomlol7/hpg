@@ -16,129 +16,144 @@ body {
 }
 
 .container {
-  max-width: 1000px;
+  max-width: 900px;
   width: 100%;
+  background: #18181b;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+header {
   text-align: center;
+  margin-bottom: 1.5rem;
 }
 
-/* Logo Styling - bigger + floating */
-.logo {
-  width: 220px;   /* adjust bigger/smaller here */
-  height: auto;
-  display: block;
-  margin: 0 auto 2rem;
-  animation: floatLogo 3s ease-in-out infinite;
+header img {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 0.5rem;
+  animation: float 6s ease-in-out infinite;
 }
 
-@keyframes floatLogo {
-  0%   { transform: translateY(0); }
-  50%  { transform: translateY(-20px); }
-  100% { transform: translateY(0); }
+@keyframes float {
+  0%   { transform: translate(0px, 0px); }
+  25%  { transform: translate(5px, -5px); }
+  50%  { transform: translate(0px, -10px); }
+  75%  { transform: translate(-5px, -5px); }
+  100% { transform: translate(0px, 0px); }
 }
 
 header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 0.3rem;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 header h4 {
+  font-size: 1.1rem;
+  color: #aaa;
   font-weight: 400;
-  color: #9ca3af;
 }
 
 .intro {
-  margin: 1rem 0 2rem;
-  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  text-align: center;
   color: #d4d4d8;
 }
 
 .upload-card {
-  background: #27272a;
-  padding: 1rem;
-  border-radius: 12px;
-  margin: 1rem 0;
+  text-align: center;
+  margin-bottom: 1.5rem;
 }
 
 .upload-label {
   display: block;
   margin-bottom: 0.5rem;
-  font-weight: bold;
+  font-weight: 600;
+}
+
+input[type="file"] {
+  background: #27272a;
+  color: #e4e4e7;
+  padding: 0.6rem;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+input[type="file"]:hover {
+  background: #3f3f46;
 }
 
 .image-preview {
-  margin: 1.5rem 0;
+  margin-top: 1rem;
+  text-align: center;
 }
 
-.results {
-  margin-top: 2rem;
+.image-preview img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin-top: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
-/* Gender display above results */
 #loading {
   text-align: center;
   margin-bottom: 1rem;
   color: #9ca3af;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.9rem;
 }
 
-/* Top match styling */
-.top-match {
+#loader {
+  display: none; /* You can add a spinner here later */
+}
+
+/* ===================== */
+/* RESULTS STYLING       */
+/* ===================== */
+#resultsContainer {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.top-match img {
-  max-width: 180px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 25px; /* space between cards */
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #1f1f23;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  min-height: 50px;
 }
 
-.top-match div {
+#resultsContainer div {
+  width: 180px; /* Each card width */
   text-align: center;
-  margin-top: 0.5rem;
-}
-
-.top-match h3 {
-  margin: 0.3rem 0;
-  font-size: 1.1rem;
-  color: #f0f0f0;
-}
-
-/* Other matches grid */
-.other-matches {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 1rem;
-  justify-items: center;
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #27272a;
-  padding: 0.5rem;
+  border: 1px solid #333;
   border-radius: 12px;
+  padding: 12px;
+  background-color: #27272a;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#resultsContainer div:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+}
+
+#resultsContainer img {
   width: 100%;
-  text-align: center;
+  border-radius: 10px;
 }
 
-.card img {
-  max-width: 100%;
-  border-radius: 8px;
-  margin-bottom: 0.5rem;
+#resultsContainer h3 {
+  margin: 10px 0 6px 0;
+  font-size: 1.1rem;
+  color: #fff;
 }
 
-.card h3 {
-  margin: 0.2rem 0;
-  font-size: 0.95rem;
-  color: #f0f0f0;
-}
-
-.card .similarity {
-  font-weight: 700;
-  color: #ffffff;
+.similarity {
+  font-weight: bold;
+  font-size: 1rem;
+  color: #ffcc00; /* shade the percentage */
 }
