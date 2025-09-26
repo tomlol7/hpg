@@ -108,7 +108,7 @@ input[type="file"]:hover {
 }
 
 #loader {
-  display: none; /* You can add a spinner here later */
+  display: none;
 }
 
 /* ===================== */
@@ -116,9 +116,9 @@ input[type="file"]:hover {
 /* ===================== */
 #resultsContainer {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 25px; /* space between cards */
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
   margin-top: 2rem;
   padding: 1rem;
   background: #1f1f23;
@@ -126,9 +126,12 @@ input[type="file"]:hover {
   min-height: 50px;
 }
 
-#resultsContainer div {
-  width: 180px; /* Each card width */
-  text-align: center;
+/* Top match */
+.top-match {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 220px;
   border: 1px solid #333;
   border-radius: 12px;
   padding: 12px;
@@ -136,24 +139,50 @@ input[type="file"]:hover {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-#resultsContainer div:hover {
+.top-match:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 25px rgba(0,0,0,0.6);
 }
 
-#resultsContainer img {
+/* Grid for remaining 10 matches */
+.other-matches {
+  display: grid;
+  grid-template-columns: repeat(5, 180px);
+  gap: 25px;
+  justify-content: center;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 12px;
+  background-color: #27272a;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+}
+
+.card img, .top-match img {
   width: 100%;
   border-radius: 10px;
 }
 
-#resultsContainer h3 {
+.card h3, .top-match h3 {
   margin: 10px 0 6px 0;
   font-size: 1.1rem;
   color: #fff;
+  text-align: center;
 }
 
 .similarity {
   font-weight: bold;
   font-size: 1rem;
-  color: #ffcc00; /* shade the percentage */
+  color: #ffcc00;
+  text-align: center;
 }
