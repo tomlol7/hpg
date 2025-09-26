@@ -8,18 +8,6 @@
     <title>Find your phenotype from a picture!</title>
     <meta name="description" content="Find which of the anthropological types from humanphenotypes.net are your closest match using a single selfie! All analysis is done on-device, your photo is not sent to any server.">
 
-    <meta property="og:title" content="Find your phenotype from a picture!">
-    <meta property="og:url" content="https://phenotypes.pages.dev">
-    <meta property="og:type" content="website">
-    <meta property="og:description" content="Find which of the anthropological types from humanphenotypes.net are your closest match using a single selfie! All analysis is done on-device, your photo is not sent to any server.">
-    <meta property="og:image" content="https://phenotypes.pages.dev/icon.png">
-    <meta property="og:site_name" content="phenotypes">
-    <meta property="og:locale" content="en_US">
-
-    <link rel="canonical" href="https://phenotypes.pages.dev">
-    <link rel="icon" type="image/png" href="icon.png" />
-    <link rel="apple-touch-icon" href="icon.png" />
-
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -34,6 +22,23 @@
         Curious about your ethnic background? Upload a photo and this tool will compare your facial features to anthropological types from
         <i>Human Phenotypes</i>. All processing is done directly in your browser &mdash; your photo never leaves your device.
       </p>
+
+      <div id="loader"></div>
+      <div id="loading">Fetching the facial recognition models. . .</div>
+
+      <div class="upload-card">
+        <label for="imgInp" class="upload-label">Select a photo:</label>
+        <input accept="image/*" type="file" id="imgInp" />
+      </div>
+
+      <div id="imgContainer" class="image-preview"></div>
+      <div id="resultsContainer" class="results"></div>
+    </div>
+
+    <script src="face-api.min.js" defer></script>
+    <script src="script.js" defer></script>
+  </body>
+</html>
 
       <div id="loader"></div>
       <div id="loading">Fetching the facial recognition models. . .</div>
