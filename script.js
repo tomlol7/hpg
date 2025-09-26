@@ -30,20 +30,34 @@ async function analyze() {
     return;
   }
 
-  let sex = detection.gender;
-  if (
-    confirm(
-      `The program thinks you are ${sex} with ${(detection.genderProbability * 100).toFixed(
-        0
-      )}% confidence. Is this correct?`
-    )
-  ) {
-    sex = sex.substring(0, 1);
+  // ---------------------------
+  // Gender handling
+  // ---------------------------
+  let sex;
+  const genderProbability = detection.genderProbability * 100;
+
+  if (genderProbability >= 50) {
+    // Automatically assign gender
+    sex = detection.gender === 'female' ? 'f' : 'm';
+    loading.textContent = `Gender detected: ${detection.gender.charAt(0).toUpperCase() + detection.gender.slice(1)}`;
   } else {
-    sex = sex === 'female' ? 'm' : 'f';
+    // Ask for confirmation if < 50%
+    if (
+      confirm(
+        `The program thinks you are ${detection.gender} with ${Math.round(genderProbability)}% confidence. Is this correct?`
+      )
+    ) {
+      sex = detection.gender.substring(0, 1);
+    } else {
+      sex = detection.gender === 'female' ? 'm' : 'f';
+    }
   }
+
   const iSex = sex === 'm' ? 1 : 2;
 
+  // ---------------------------
+  // Similarity calculations
+  // ---------------------------
   let list2 = structuredClone(list);
   for (let j = 0; j < list2.length; j++) {
     const len2 = list2[j].length;
@@ -68,7 +82,8 @@ async function analyze() {
 
   list2.sort((a, b) => grpScore(b) - grpScore(a));
 
-  loading.textContent = 'Results!';
+  loading.textContent = `Gender: ${sex === 'm' ? 'Male' : 'Female'} | Results below!`;
+
   const resultsContainer = document.getElementById('resultsContainer');
   resultsContainer.innerHTML = `<h2>Top Match Results</h2>`;
 
