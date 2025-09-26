@@ -69,8 +69,7 @@ async function analyze() {
 
   loading.textContent = 'Results!';
   const resultsContainer = document.getElementById('resultsContainer');
-  resultsContainer.innerHTML = `<br>
-    <h2>Top 10 Match Results</h2>
+  resultsContainer.innerHTML = `<h2>Top 10 Match Results</h2>
     <p>These are the top 10 phenotypes that most closely match your uploaded image.</p>`;
 
   let displayedCount = 0; // Track total images displayed
@@ -84,7 +83,7 @@ async function analyze() {
         <img src="faces_lowres/basic/${a[0][0].toLowerCase()}${sex}.jpg">
         <div>
           <a href="http://humanphenotypes.net/basic/${a[0][0]}.html"><h3>${a[0][0]}</h3></a>
-          ${Math.round(a[0][i])}% similarity
+          <span class="similarity">${Math.round(a[0][i])}%</span> similarity
         </div>
       </div>`;
       displayedCount++;
@@ -94,10 +93,10 @@ async function analyze() {
     for (const arr of a[aLen - 1]) {
       if (displayedCount >= 10) break; // stop after 10 images total
       resultsContainer.innerHTML += `<div>
-        <img src="faces_lowres/${arr[0].toLowerCase()}${sex}.jpg" style="margin-left: 30px">
+        <img src="faces_lowres/${arr[0].toLowerCase()}${sex}.jpg">
         <div>
           <a href="http://humanphenotypes.net/${arr[0]}.html"><h3>${arr[0]}</h3></a>
-          ${Math.round(arr[i])}% similarity
+          <span class="similarity">${Math.round(arr[i])}%</span> similarity
         </div>
       </div>`;
       displayedCount++;
