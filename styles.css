@@ -16,7 +16,7 @@ body {
 }
 
 .container {
-  max-width: 800px;
+  max-width: 900px;
   width: 100%;
   background: #18181b;
   border-radius: 16px;
@@ -100,14 +100,6 @@ input[type="file"]:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
-#resultsContainer {
-  margin-top: 2rem;
-  padding: 1rem;
-  background: #1f1f23;
-  border-radius: 12px;
-  min-height: 50px;
-}
-
 #loading {
   text-align: center;
   margin-bottom: 1rem;
@@ -117,4 +109,51 @@ input[type="file"]:hover {
 
 #loader {
   display: none; /* You can add a spinner here later */
+}
+
+/* ===================== */
+/* RESULTS STYLING       */
+/* ===================== */
+#resultsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 25px; /* space between cards */
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #1f1f23;
+  border-radius: 12px;
+  min-height: 50px;
+}
+
+#resultsContainer div {
+  width: 180px; /* Each card width */
+  text-align: center;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 12px;
+  background-color: #27272a;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#resultsContainer div:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+}
+
+#resultsContainer img {
+  width: 100%;
+  border-radius: 10px;
+}
+
+#resultsContainer h3 {
+  margin: 10px 0 6px 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.similarity {
+  font-weight: bold;
+  font-size: 1rem;
+  color: #ffcc00; /* shade the percentage */
 }
