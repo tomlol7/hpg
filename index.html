@@ -25,7 +25,7 @@
   <body>
     <div class="container">
       <header>
-        <img id="icon" src="icon.png" alt="Phenotypes Logo">
+        <img src="logo.png" alt="Phenotypes Logo" class="logo" />
         <h1>Phenotypes</h1>
         <h4>Find your phenotype from a picture!</h4>
       </header>
@@ -34,6 +34,23 @@
         Curious about your ethnic background? Upload a photo and this tool will compare your facial features to anthropological types from
         <i>Human Phenotypes</i>. All processing is done directly in your browser &mdash; your photo never leaves your device.
       </p>
+
+      <div id="loader"></div>
+      <div id="loading">Fetching the facial recognition models. . .</div>
+
+      <div class="upload-card">
+        <label for="imgInp" class="upload-label">Select a photo:</label>
+        <input accept="image/*" type="file" id="imgInp" />
+      </div>
+
+      <div id="imgContainer" class="image-preview"></div>
+      <div id="resultsContainer" class="results"></div>
+    </div>
+
+    <script src="face-api.min.js" defer></script>
+    <script src="script.js" defer></script>
+  </body>
+</html>
 
       <div id="loader"></div>
       <div id="loading">Fetching the facial recognition models. . .</div>
