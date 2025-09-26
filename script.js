@@ -42,68 +42,92 @@ async function analyze() {
   } else {
     sex = sex === 'female' ? 'm' : 'f';
   }
-  const i = sex === 'm' ? 1 : 2;
+  const iSex = sex === 'm' ? 1 : 2;
 
   let list2 = structuredClone(list);
   for (let j = 0; j < list2.length; j++) {
     const len2 = list2[j].length;
     if (len2 > 1) {
-      list2[j][0][i] = cos(list2[j][0][i], detection.descriptor) * 100;
+      list2[j][0][iSex] = cos(list2[j][0][iSex], detection.descriptor) * 100;
     }
     for (let k = 0; k < list2[j][len2 - 1].length; k++) {
-      list2[j][len2 - 1][k][i] = cos(list2[j][len2 - 1][k][i], detection.descriptor) * 100;
+      list2[j][len2 - 1][k][iSex] = cos(list2[j][len2 - 1][k][iSex], detection.descriptor) * 100;
     }
-    list2[j][len2 - 1].sort((a, b) => b[i] - a[i]);
+    list2[j][len2 - 1].sort((a, b) => b[iSex] - a[iSex]);
   }
 
   function grpScore(a) {
     if (a.length > 1) {
-      return Math.max(a[0][i], a[1][0][i]);
+      return Math.max(a[0][iSex], a[1][0][iSex]);
     }
-    return a[0][0][i];
+    return a[0][0][iSex];
   }
+
   list2.sort((a, b) => grpScore(b) - grpScore(a));
 
-  // ✅ Keep only top 10 groups
-  list2 = list2.slice(0, 10);
+  // ✅ Keep top 11 (top + 10 other matches)
+  const top = list2[0];
+  const otherList = list2.slice(1, 11);
 
   loading.textContent = 'Results!';
   const resultsContainer = document.getElementById('resultsContainer');
-  resultsContainer.innerHTML = `<h2>Top 10 Match Results</h2>
-    <p>These are the top 10 phenotypes that most closely match your uploaded image.</p>`;
+  resultsContainer.innerHTML = `<h2>Top Match Results</h2>`;
 
-  let displayedCount = 0; // Track total images displayed
+  // Top match card
+  const topName = top.length > 1 ? top[0][0] : top[0][0];
+  const topScore = top.length > 1 ? Math.round(top[0][iSex]) : Math.round(top[0][iSex]);
 
-  for (const a of list2) {
-    const aLen = a.length;
+  resultsContainer.innerHTML += `
+    <div class="top-match">
+      <img src="faces_lowres/basic/${topName.toLowerCase()}${sex}.jpg">
+      <div>
+        <a href="http://humanphenotypes.net/basic/${topName}.html"><h3>${topName}</h3></a>
+        <span class="similarity">${topScore}%</span> similarity
+      </div>
+    </div>
+  `;
 
-    // Display the main match
+  // Grid for the remaining 10 matches
+  resultsContainer.innerHTML += `<div class="other-matches">`;
+  let displayedCount = 0;
+
+  for (const group of otherList) {
+    const aLen = group.length;
+
+    // Main match in group
     if (aLen > 1 && displayedCount < 10) {
-      resultsContainer.innerHTML += `<div>
-        <img src="faces_lowres/basic/${a[0][0].toLowerCase()}${sex}.jpg">
-        <div>
-          <a href="http://humanphenotypes.net/basic/${a[0][0]}.html"><h3>${a[0][0]}</h3></a>
-          <span class="similarity">${Math.round(a[0][i])}%</span> similarity
-        </div>
-      </div>`;
+      const name = group[0][0];
+      const score = Math.round(group[0][iSex]);
+      resultsContainer.innerHTML += `
+        <div class="card">
+          <img src="faces_lowres/basic/${name.toLowerCase()}${sex}.jpg">
+          <div>
+            <a href="http://humanphenotypes.net/basic/${name}.html"><h3>${name}</h3></a>
+            <span class="similarity">${score}%</span> similarity
+          </div>
+        </div>`;
       displayedCount++;
     }
 
-    // Display nested matches
-    for (const arr of a[aLen - 1]) {
-      if (displayedCount >= 10) break; // stop after 10 images total
-      resultsContainer.innerHTML += `<div>
-        <img src="faces_lowres/${arr[0].toLowerCase()}${sex}.jpg">
-        <div>
-          <a href="http://humanphenotypes.net/${arr[0]}.html"><h3>${arr[0]}</h3></a>
-          <span class="similarity">${Math.round(arr[i])}%</span> similarity
-        </div>
-      </div>`;
+    // Nested matches
+    for (const arr of group[aLen - 1]) {
+      if (displayedCount >= 10) break;
+      const name = arr[0];
+      const score = Math.round(arr[iSex]);
+      resultsContainer.innerHTML += `
+        <div class="card">
+          <img src="faces_lowres/${name.toLowerCase()}${sex}.jpg">
+          <div>
+            <a href="http://humanphenotypes.net/${name}.html"><h3>${name}</h3></a>
+            <span class="similarity">${score}%</span> similarity
+          </div>
+        </div>`;
       displayedCount++;
     }
 
-    if (displayedCount >= 10) break; // stop outer loop if reached 10
+    if (displayedCount >= 10) break;
   }
+  resultsContainer.innerHTML += `</div>`; // close other-matches
 }
 
 document.getElementById('imgInp').onchange = async function () {
