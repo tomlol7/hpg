@@ -16,7 +16,7 @@ body {
 }
 
 .container {
-  max-width: 900px;
+  max-width: 800px;
   width: 100%;
   background: #18181b;
   border-radius: 16px;
@@ -30,10 +30,156 @@ header {
 }
 
 header img {
-  width: 60px;
-  height: 60px;
+  width: 100px; /* Increased logo size */
+  height: 100px; /* Increased logo size */
   margin-bottom: 0.5rem;
   animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%   { transform: translate(0px, 0px); }
+  25%  { transform: translate(5px, -5px); }
+  50%  { transform: translate(0px, -10px); }
+  75%  { transform: translate(-5px, -5px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+header h4 {
+  font-size: 1.1rem;
+  color: #aaa;
+  font-weight: 400;
+}
+
+.intro {
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  text-align: center;
+  color: #d4d4d8;
+}
+
+.upload-card {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.upload-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+input[type="file"] {
+  background: #27272a;
+  color: #e4e4e7;
+  padding: 0.6rem;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+input[type="file"]:hover {
+  background: #3f3f46;
+}
+
+.image-preview {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.image-preview img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin-top: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+#resultsContainer {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #1f1f23;
+  border-radius: 12px;
+  min-height: 50px;
+}
+
+#loading {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #9ca3af;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#loader {
+  display: none; /* You can add a spinner here later */
+}
+
+/* Top match styling */
+.top-match {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.top-match img {
+  max-width: 180px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.top-match div {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.top-match h3 {
+  margin: 0.3rem 0;
+  font-size: 1.1rem;
+  color: #f0f0f0;
+}
+
+/* Other matches grid */
+.other-matches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  justify-items: center;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #27272a;
+  padding: 0.5rem;
+  border-radius: 12px;
+  width: 100%;
+  text-align: center;
+}
+
+.card img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.card h3 {
+  margin: 0.2rem 0;
+  font-size: 0.95rem;
+  color: #f0f0f0;
+}
+
+.card .similarity {
+  font-weight: 700;
+  color: #ffffff;
+}
 }
 
 @keyframes float {
