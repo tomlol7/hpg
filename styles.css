@@ -61,6 +61,10 @@ header h4 {
   font-size: 1rem;
   text-align: center;
   color: #d4d4d8;
+  background: rgba(255, 204, 0, 0.05);
+  border-left: 4px solid #ffcc00;
+  padding: 1rem;
+  border-radius: 8px;
 }
 
 .upload-card {
@@ -108,7 +112,17 @@ input[type="file"]:hover {
 }
 
 #loader {
-  display: none; /* You can add a spinner here later */
+  margin: 1rem auto;
+  border: 4px solid #3f3f46;
+  border-top: 4px solid #ffcc00;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ===================== */
@@ -127,7 +141,11 @@ input[type="file"]:hover {
 }
 
 #resultsContainer div {
-  width: 180px; /* Each card width */
+  width: 180px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   text-align: center;
   border: 1px solid #333;
   border-radius: 12px;
@@ -150,10 +168,34 @@ input[type="file"]:hover {
   margin: 10px 0 6px 0;
   font-size: 1.1rem;
   color: #fff;
+  transition: color 0.2s;
+}
+
+#resultsContainer a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+#resultsContainer div:hover h3 {
+  color: #ffcc00;
 }
 
 .similarity {
   font-weight: bold;
   font-size: 1rem;
   color: #ffcc00; /* shade the percentage */
+}
+
+/* Responsive layout */
+@media (max-width: 600px) {
+  #resultsContainer div {
+    width: 45%; /* two per row */
+  }
+}
+
+@media (max-width: 400px) {
+  #resultsContainer div {
+    width: 100%; /* full width */
+  }
 }
