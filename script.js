@@ -2,6 +2,7 @@ let list;
 const loading = document.getElementById('loading');
 const imgContainer = document.getElementById('imgContainer');
 
+// Display uploaded image
 async function displayImg(url) {
   const img = new Image();
   img.src = url;
@@ -9,6 +10,7 @@ async function displayImg(url) {
   imgContainer.replaceChildren(img);
 }
 
+// Math helpers
 const dot = (a, b) => a.reduce((acc, n, i) => acc + n * b[i], 0);
 const cos = (a, b) => dot(a, b) / Math.sqrt(dot(a, a) * dot(b, b));
 
@@ -19,6 +21,7 @@ async function analyze() {
   }
 
   loading.textContent = 'Analyzing the image. . .';
+
   const detection = await faceapi
     .detectSingleFace(imgContainer.firstChild)
     .withFaceLandmarks()
@@ -38,12 +41,13 @@ async function analyze() {
       )}% confidence. Is this correct?`
     )
   ) {
-    sex = sex.substring(0, 1);
+    sex = sex.substring(0, 1); // "m" or "f"
   } else {
     sex = sex === 'female' ? 'm' : 'f';
   }
   const i = sex === 'm' ? 1 : 2;
 
+  // Clone list for scoring
   let list2 = structuredClone(list);
   for (let j = 0; j < list2.length; j++) {
     const len2 = list2[j].length;
@@ -69,8 +73,11 @@ async function analyze() {
 
   loading.textContent = 'Results!';
   const resultsContainer = document.getElementById('resultsContainer');
-  resultsContainer.innerHTML = `<h2>Top 10 Match Results</h2>
-    <p>These are the top 10 phenotypes that most closely match your uploaded image.</p>`;
+  resultsContainer.innerHTML = `
+    <h2 style="width:100%;text-align:center;margin-bottom:1rem;">Top 10 Match Results</h2>
+    <p style="width:100%;text-align:center;margin-bottom:1.5rem;color:#9ca3af;">
+      These are the top 10 phenotypes that most closely match your uploaded image.
+    </p>`;
 
   let displayedCount = 0; // Track total images displayed
 
@@ -79,41 +86,55 @@ async function analyze() {
 
     // Display the main match
     if (aLen > 1 && displayedCount < 10) {
-      resultsContainer.innerHTML += `<div>
-        <img src="faces_lowres/basic/${a[0][0].toLowerCase()}${sex}.jpg">
+      const name = a[0][0];
+      const similarity = Math.round(a[0][i]);
+      const imgSrc = `faces_lowres/basic/${name.toLowerCase()}${sex}.jpg`;
+      const link = `http://humanphenotypes.net/basic/${name}.html`;
+
+      resultsContainer.innerHTML += `
         <div>
-          <a href="http://humanphenotypes.net/basic/${a[0][0]}.html"><h3>${a[0][0]}</h3></a>
-          <span class="similarity">${Math.round(a[0][i])}%</span> similarity
-        </div>
-      </div>`;
+          <a href="${link}" target="_blank">
+            <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
+            <h3>${name}</h3>
+            <span class="similarity">${similarity}% similarity</span>
+          </a>
+        </div>`;
       displayedCount++;
     }
 
     // Display nested matches
     for (const arr of a[aLen - 1]) {
-      if (displayedCount >= 10) break; // stop after 10 images total
-      resultsContainer.innerHTML += `<div>
-        <img src="faces_lowres/${arr[0].toLowerCase()}${sex}.jpg">
+      if (displayedCount >= 10) break;
+      const name = arr[0];
+      const similarity = Math.round(arr[i]);
+      const imgSrc = `faces_lowres/${name.toLowerCase()}${sex}.jpg`;
+      const link = `http://humanphenotypes.net/${name}.html`;
+
+      resultsContainer.innerHTML += `
         <div>
-          <a href="http://humanphenotypes.net/${arr[0]}.html"><h3>${arr[0]}</h3></a>
-          <span class="similarity">${Math.round(arr[i])}%</span> similarity
-        </div>
-      </div>`;
+          <a href="${link}" target="_blank">
+            <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
+            <h3>${name}</h3>
+            <span class="similarity">${similarity}% similarity</span>
+          </a>
+        </div>`;
       displayedCount++;
     }
 
-    if (displayedCount >= 10) break; // stop outer loop if reached 10
+    if (displayedCount >= 10) break;
   }
 }
 
+// Handle file upload
 document.getElementById('imgInp').onchange = async function () {
   const [file] = this.files;
   if (file) {
     await displayImg(URL.createObjectURL(file));
-    if (document.getElementById('loader') == null) analyze();
+    analyze(); // always analyze, no loader check
   }
 };
 
+// Load models + data
 (async () => {
   await faceapi.loadSsdMobilenetv1Model('models');
   await faceapi.loadFaceLandmarkModel('models');
