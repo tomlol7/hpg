@@ -1,19 +1,56 @@
-let list;
-const loading = document.getElementById('loading');
-const imgContainer = document.getElementById('imgContainer');
+// script.js
 
-// Display uploaded image
-async function displayImg(url) {
-  const img = new Image();
-  img.src = url;
-  await img.decode();
-  imgContainer.replaceChildren(img);
+// =====================
+// LOAD MODELS
+// =====================
+async function loadModels() {
+  const MODEL_URL = './models';
+  await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+  await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+  await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+  await faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL);
+  document.getElementById('loading').textContent = 'Models loaded. Ready!';
 }
 
-// Math helpers
-const dot = (a, b) => a.reduce((acc, n, i) => acc + n * b[i], 0);
-const cos = (a, b) => dot(a, b) / Math.sqrt(dot(a, a) * dot(b, b));
+loadModels();
 
+// =====================
+// FILE UPLOAD PREVIEW
+// =====================
+const imgInp = document.getElementById('imgInp');
+const imgContainer = document.getElementById('imgContainer');
+const loading = document.getElementById('loading');
+
+imgInp.addEventListener('change', () => {
+  const file = imgInp.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      imgContainer.innerHTML = `<img src="${e.target.result}" alt="Uploaded Image">`;
+      analyze();
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+// =====================
+// COSINE SIMILARITY
+// =====================
+function cos(descriptor1, descriptor2) {
+  let dot = 0.0;
+  let normA = 0.0;
+  let normB = 0.0;
+  for (let i = 0; i < descriptor1.length; i++) {
+    dot += descriptor1[i] * descriptor2[i];
+    normA += descriptor1[i] * descriptor1[i];
+    normB += descriptor2[i] * descriptor2[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// =====================
+// MAIN ANALYZE FUNCTION
+// =====================
 async function analyze() {
   if (!imgContainer.firstChild) {
     loading.textContent = 'No image to analyze.';
@@ -60,110 +97,64 @@ async function analyze() {
     list2[j][len2 - 1].sort((a, b) => b[i] - a[i]);
   }
 
-  function grpScore(a) {
-    if (a.length > 1) {
-      return Math.max(a[0][i], a[1][0][i]);
+  // ✅ Flatten all results into one array
+  let allResults = [];
+  for (const a of list2) {
+    const aLen = a.length;
+
+    // Add main match
+    if (aLen > 1) {
+      allResults.push({
+        name: a[0][0],
+        similarity: Math.round(a[0][i]),
+        sex,
+        isBasic: true,
+      });
     }
-    return a[0][0][i];
+
+    // Add nested matches
+    for (const arr of a[aLen - 1]) {
+      allResults.push({
+        name: arr[0],
+        similarity: Math.round(arr[i]),
+        sex,
+        isBasic: false,
+      });
+    }
   }
-  list2.sort((a, b) => grpScore(b) - grpScore(a));
 
-  // ✅ Keep only top 10 groups
-  list2 = list2.slice(0, 10);
+  // ✅ Sort everything by similarity descending
+  allResults.sort((a, b) => b.similarity - a.similarity);
 
+  // ✅ Keep only top 10
+  allResults = allResults.slice(0, 10);
+
+  // Render results
   loading.textContent = 'Results!';
   const resultsContainer = document.getElementById('resultsContainer');
   resultsContainer.innerHTML = `
     <h2 style="width:100%;text-align:center;margin-bottom:1rem;">Top 10 Match Results</h2>
     <p style="width:100%;text-align:center;margin-bottom:1.5rem;color:#9ca3af;">
-      These are the top 10 phenotypes that most closely match your uploaded image.
+      Sorted from most to least similar.
     </p>`;
 
-  let displayedCount = 0; // Track total images displayed
+  for (const r of allResults) {
+    const imgSrc = r.isBasic
+      ? `faces_lowres/basic/${r.name.toLowerCase()}${r.sex}.jpg`
+      : `faces_lowres/${r.name.toLowerCase()}${r.sex}.jpg`;
 
-  for (const a of list2) {
-    const aLen = a.length;
+    const link = r.isBasic
+      ? `http://humanphenotypes.net/basic/${r.name}.html`
+      : `http://humanphenotypes.net/${r.name}.html`;
 
-    // Display the main match
-    if (aLen > 1 && displayedCount < 10) {
-      const name = a[0][0];
-      const similarity = Math.round(a[0][i]);
-      const imgSrc = `faces_lowres/basic/${name.toLowerCase()}${sex}.jpg`;
-      const link = `http://humanphenotypes.net/basic/${name}.html`;
-
-      resultsContainer.innerHTML += `
-        <div>
-          <a href="${link}" target="_blank">
-            <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
-            <h3>${name}</h3>
-            <span class="similarity">${similarity}% similarity</span>
-          </a>
-        </div>`;
-      displayedCount++;
-    }
-
-    // Display nested matches
-    for (const arr of a[aLen - 1]) {
-      if (displayedCount >= 10) break;
-      const name = arr[0];
-      const similarity = Math.round(arr[i]);
-      const imgSrc = `faces_lowres/${name.toLowerCase()}${sex}.jpg`;
-      const link = `http://humanphenotypes.net/${name}.html`;
-
-      resultsContainer.innerHTML += `
-        <div>
-          <a href="${link}" target="_blank">
-            <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
-            <h3>${name}</h3>
-            <span class="similarity">${similarity}% similarity</span>
-          </a>
-        </div>`;
-      displayedCount++;
-    }
-
-    if (displayedCount >= 10) break;
+    resultsContainer.innerHTML += `
+      <div>
+        <a href="${link}" target="_blank">
+          <img src="${imgSrc}" alt="${r.name}" onerror="this.src='placeholder.png'">
+          <h3>${r.name}</h3>
+          <span class="similarity">${r.similarity}% similarity</span>
+        </a>
+      </div>`;
   }
 }
 
-// Handle file upload
-document.getElementById('imgInp').onchange = async function () {
-  const [file] = this.files;
-  if (file) {
-    await displayImg(URL.createObjectURL(file));
-    analyze(); // always analyze, no loader check
-  }
-};
-
-// Load models + data
-(async () => {
-  await faceapi.loadSsdMobilenetv1Model('models');
-  await faceapi.loadFaceLandmarkModel('models');
-  await faceapi.loadFaceRecognitionModel('models');
-  await faceapi.loadAgeGenderModel('models');
-
-  const response = await fetch('list.json');
-  const text = await response.text();
-  list = JSON.parse(text);
-
-  const hexToF32Arr = (str) =>
-    new Float32Array(
-      new Uint8Array([...atob(str)].map((c) => c.charCodeAt(0))).buffer
-    );
-  const hexToF32 = (arr) => [arr[0], hexToF32Arr(arr[1]), hexToF32Arr(arr[2])];
-
-  for (let i = 0; i < list.length; i++) {
-    const len = list[i].length;
-    if (len > 1) {
-      list[i][0] = hexToF32(list[i][0]);
-    }
-    for (let j = 0; j < list[i][len - 1].length; j++) {
-      list[i][len - 1][j] = hexToF32(list[i][len - 1][j]);
-    }
-  }
-
-  loading.textContent = 'Models fetched!';
-  const loader = document.getElementById('loader');
-  if (loader) loader.remove();
-
-  if (imgContainer.children.length > 0) analyze();
-})();
