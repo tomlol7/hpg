@@ -1,6 +1,7 @@
 let list;
 const loading = document.getElementById('loading');
 const imgContainer = document.getElementById('imgContainer');
+const resultsContainer = document.getElementById('resultsContainer');
 
 // Display uploaded image
 async function displayImg(url) {
@@ -33,7 +34,7 @@ async function analyze() {
     return;
   }
 
-  // Automatically determine gender if confidence > 50%
+  // Determine gender if confidence > 50%
   let gender = '';
   let genderShort = '';
   if (detection.genderProbability >= 0.5) {
@@ -46,15 +47,13 @@ async function analyze() {
     loading.innerHTML = `Gender: <span style="color:#ffcc00">Unknown</span>`;
   }
 
-  const i = genderShort === 'm' ? 1 : genderShort === 'f' ? 2 : 1; // default to male index if unknown
+  const i = genderShort === 'm' ? 1 : genderShort === 'f' ? 2 : 1; // default male if unknown
 
   // Clone list for scoring
   let list2 = structuredClone(list);
   for (let j = 0; j < list2.length; j++) {
     const len2 = list2[j].length;
-    if (len2 > 1) {
-      list2[j][0][i] = cos(list2[j][0][i], detection.descriptor) * 100;
-    }
+    if (len2 > 1) list2[j][0][i] = cos(list2[j][0][i], detection.descriptor) * 100;
     for (let k = 0; k < list2[j][len2 - 1].length; k++) {
       list2[j][len2 - 1][k][i] = cos(list2[j][len2 - 1][k][i], detection.descriptor) * 100;
     }
@@ -67,11 +66,10 @@ async function analyze() {
   }
   list2.sort((a, b) => grpScore(b) - grpScore(a));
 
-  // Keep only top 10 groups
+  // Top 10 groups
   list2 = list2.slice(0, 10);
 
   loading.textContent += ' | Results ready!';
-  const resultsContainer = document.getElementById('resultsContainer');
   resultsContainer.innerHTML = `
     <h2 style="width:100%;text-align:center;margin-bottom:1rem;">Top 10 Match Results</h2>
     <p style="width:100%;text-align:center;margin-bottom:1.5rem;color:#9ca3af;">
@@ -95,8 +93,13 @@ async function analyze() {
           <a href="${link}" target="_blank">
             <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
             <h3>${name}</h3>
-            <span class="similarity">${similarity}% similarity</span>
           </a>
+          <div class="similarity-container">
+            <div class="similarity-bar-bg">
+              <div class="similarity-bar-fill" style="width:0%"></div>
+            </div>
+            <div class="similarity-text">${similarity}%</div>
+          </div>
         </div>`;
       displayedCount++;
     }
@@ -114,14 +117,26 @@ async function analyze() {
           <a href="${link}" target="_blank">
             <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
             <h3>${name}</h3>
-            <span class="similarity">${similarity}% similarity</span>
           </a>
+          <div class="similarity-container">
+            <div class="similarity-bar-bg">
+              <div class="similarity-bar-fill" style="width:0%"></div>
+            </div>
+            <div class="similarity-text">${similarity}%</div>
+          </div>
         </div>`;
       displayedCount++;
     }
 
     if (displayedCount >= 10) break;
   }
+
+  // Animate progress bars
+  const bars = resultsContainer.querySelectorAll('.similarity-bar-fill');
+  bars.forEach((bar, index) => {
+    const perc = list2[index]?.[0]?.[i] ? Math.round(list2[index][0][i]) : 0;
+    setTimeout(() => bar.style.width = perc + '%', 100);
+  });
 }
 
 // Handle file upload
@@ -132,6 +147,24 @@ document.getElementById('imgInp').onchange = async function () {
     analyze();
   }
 };
+
+// Light/Dark Mode Toggle
+const themeToggle = document.createElement('button');
+themeToggle.id = 'themeToggle';
+themeToggle.textContent = 'Toggle Light/Dark Mode';
+themeToggle.style.marginBottom = '1rem';
+document.querySelector('.container').prepend(themeToggle);
+
+if(localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('light-mode');
+  if(document.body.classList.contains('light-mode')) {
+    localStorage.setItem('theme', 'light');
+  } else {
+    localStorage.removeItem('theme');
+  }
+});
 
 // Load models + data
 (async () => {
