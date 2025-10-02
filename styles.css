@@ -101,9 +101,11 @@ header h4 {
   margin-bottom: 1.5rem;
   font-size: 1rem;
   text-align: center;
-  color: #ffcc00; /* restore highlight */
-  font-weight: 500;
-
+  color: #d4d4d8;
+  background: rgba(255, 204, 0, 0.05);
+  border-left: 4px solid #ffcc00;
+  padding: 1rem;
+  border-radius: 8px;
 }
 
 .upload-card {
