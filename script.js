@@ -33,19 +33,39 @@ async function analyze() {
     return;
   }
 
-  let sex = detection.gender;
-  if (
-    confirm(
-      `The program thinks you are ${sex} with ${(detection.genderProbability * 100).toFixed(
-        0
-      )}% confidence. Is this correct?`
-    )
-  ) {
-    sex = sex.substring(0, 1); // "m" or "f"
+  // Automatic gender detection (>50% probability)
+  let genderText =
+    detection.genderProbability > 0.5
+      ? detection.gender === 'male'
+        ? 'Male'
+        : 'Female'
+      : 'Unknown';
+  let genderShort =
+    genderText === 'Male'
+      ? 'm'
+      : genderText === 'Female'
+      ? 'f'
+      : 'm'; // default 'm' if unknown
+  const i = genderShort === 'm' ? 1 : 2;
+
+  // Display gender above results
+  const resultsContainer = document.getElementById('resultsContainer');
+  resultsContainer.innerHTML = ''; // clear previous results
+  const genderDisplay = document.createElement('p');
+  genderDisplay.innerHTML = `Gender: <span class="gender">${genderText}</span>`;
+  genderDisplay.style.textAlign = 'center';
+  genderDisplay.style.fontWeight = '600';
+  genderDisplay.style.fontSize = '1rem';
+  genderDisplay.style.marginBottom = '1rem';
+
+  if (genderText === 'Male') {
+    genderDisplay.querySelector('.gender').style.color = '#3498db'; // blue
+  } else if (genderText === 'Female') {
+    genderDisplay.querySelector('.gender').style.color = '#e91e63'; // pink
   } else {
-    sex = sex === 'female' ? 'm' : 'f';
+    genderDisplay.querySelector('.gender').style.color = '#9ca3af'; // gray
   }
-  const i = sex === 'm' ? 1 : 2;
+  resultsContainer.appendChild(genderDisplay);
 
   // Clone list for scoring
   let list2 = structuredClone(list);
@@ -55,7 +75,8 @@ async function analyze() {
       list2[j][0][i] = cos(list2[j][0][i], detection.descriptor) * 100;
     }
     for (let k = 0; k < list2[j][len2 - 1].length; k++) {
-      list2[j][len2 - 1][k][i] = cos(list2[j][len2 - 1][k][i], detection.descriptor) * 100;
+      list2[j][len2 - 1][k][i] =
+        cos(list2[j][len2 - 1][k][i], detection.descriptor) * 100;
     }
     list2[j][len2 - 1].sort((a, b) => b[i] - a[i]);
   }
@@ -68,27 +89,28 @@ async function analyze() {
   }
   list2.sort((a, b) => grpScore(b) - grpScore(a));
 
-  // ✅ Keep only top 10 groups
+  // Keep only top 10 groups
   list2 = list2.slice(0, 10);
 
   loading.textContent = 'Results!';
-  const resultsContainer = document.getElementById('resultsContainer');
-  resultsContainer.innerHTML = `
+
+  // Display top matches
+  let displayedCount = 0;
+  resultsContainer.innerHTML += `
     <h2 style="width:100%;text-align:center;margin-bottom:1rem;">Top 10 Match Results</h2>
     <p style="width:100%;text-align:center;margin-bottom:1.5rem;color:#9ca3af;">
       These are the top 10 phenotypes that most closely match your uploaded image.
-    </p>`;
-
-  let displayedCount = 0; // Track total images displayed
+    </p>
+  `;
 
   for (const a of list2) {
     const aLen = a.length;
 
-    // Display the main match
+    // Main match
     if (aLen > 1 && displayedCount < 10) {
       const name = a[0][0];
       const similarity = Math.round(a[0][i]);
-      const imgSrc = `faces_lowres/basic/${name.toLowerCase()}${sex}.jpg`;
+      const imgSrc = `faces_lowres/basic/${name.toLowerCase()}${genderShort}.jpg`;
       const link = `http://humanphenotypes.net/basic/${name}.html`;
 
       resultsContainer.innerHTML += `
@@ -102,12 +124,12 @@ async function analyze() {
       displayedCount++;
     }
 
-    // Display nested matches
+    // Nested matches
     for (const arr of a[aLen - 1]) {
       if (displayedCount >= 10) break;
       const name = arr[0];
       const similarity = Math.round(arr[i]);
-      const imgSrc = `faces_lowres/${name.toLowerCase()}${sex}.jpg`;
+      const imgSrc = `faces_lowres/${name.toLowerCase()}${genderShort}.jpg`;
       const link = `http://humanphenotypes.net/${name}.html`;
 
       resultsContainer.innerHTML += `
@@ -130,7 +152,7 @@ document.getElementById('imgInp').onchange = async function () {
   const [file] = this.files;
   if (file) {
     await displayImg(URL.createObjectURL(file));
-    analyze(); // always analyze, no loader check
+    analyze();
   }
 };
 
