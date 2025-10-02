@@ -33,39 +33,20 @@ async function analyze() {
     return;
   }
 
-  // Automatic gender detection (>50% probability)
-  let genderText =
-    detection.genderProbability > 0.5
-      ? detection.gender === 'male'
-        ? 'Male'
-        : 'Female'
-      : 'Unknown';
-  let genderShort =
-    genderText === 'Male'
-      ? 'm'
-      : genderText === 'Female'
-      ? 'f'
-      : 'm'; // default 'm' if unknown
-  const i = genderShort === 'm' ? 1 : 2;
-
-  // Display gender above results
-  const resultsContainer = document.getElementById('resultsContainer');
-  resultsContainer.innerHTML = ''; // clear previous results
-  const genderDisplay = document.createElement('p');
-  genderDisplay.innerHTML = `Gender: <span class="gender">${genderText}</span>`;
-  genderDisplay.style.textAlign = 'center';
-  genderDisplay.style.fontWeight = '600';
-  genderDisplay.style.fontSize = '1rem';
-  genderDisplay.style.marginBottom = '1rem';
-
-  if (genderText === 'Male') {
-    genderDisplay.querySelector('.gender').style.color = '#3498db'; // blue
-  } else if (genderText === 'Female') {
-    genderDisplay.querySelector('.gender').style.color = '#e91e63'; // pink
+  // Automatically determine gender if confidence > 50%
+  let gender = '';
+  let genderShort = '';
+  if (detection.genderProbability >= 0.5) {
+    gender = detection.gender === 'male' ? 'Male' : 'Female';
+    genderShort = gender.charAt(0).toLowerCase();
+    loading.innerHTML = `Gender: <span style="color:${gender === 'Male' ? '#4da6ff' : '#ff6699'}">${gender}</span>`;
   } else {
-    genderDisplay.querySelector('.gender').style.color = '#9ca3af'; // gray
+    gender = 'Unknown';
+    genderShort = '';
+    loading.innerHTML = `Gender: <span style="color:#ffcc00">Unknown</span>`;
   }
-  resultsContainer.appendChild(genderDisplay);
+
+  const i = genderShort === 'm' ? 1 : genderShort === 'f' ? 2 : 1; // default to male index if unknown
 
   // Clone list for scoring
   let list2 = structuredClone(list);
@@ -75,16 +56,13 @@ async function analyze() {
       list2[j][0][i] = cos(list2[j][0][i], detection.descriptor) * 100;
     }
     for (let k = 0; k < list2[j][len2 - 1].length; k++) {
-      list2[j][len2 - 1][k][i] =
-        cos(list2[j][len2 - 1][k][i], detection.descriptor) * 100;
+      list2[j][len2 - 1][k][i] = cos(list2[j][len2 - 1][k][i], detection.descriptor) * 100;
     }
     list2[j][len2 - 1].sort((a, b) => b[i] - a[i]);
   }
 
   function grpScore(a) {
-    if (a.length > 1) {
-      return Math.max(a[0][i], a[1][0][i]);
-    }
+    if (a.length > 1) return Math.max(a[0][i], a[1][0][i]);
     return a[0][0][i];
   }
   list2.sort((a, b) => grpScore(b) - grpScore(a));
@@ -92,16 +70,15 @@ async function analyze() {
   // Keep only top 10 groups
   list2 = list2.slice(0, 10);
 
-  loading.textContent = 'Results!';
-
-  // Display top matches
-  let displayedCount = 0;
-  resultsContainer.innerHTML += `
+  loading.textContent += ' | Results ready!';
+  const resultsContainer = document.getElementById('resultsContainer');
+  resultsContainer.innerHTML = `
     <h2 style="width:100%;text-align:center;margin-bottom:1rem;">Top 10 Match Results</h2>
     <p style="width:100%;text-align:center;margin-bottom:1.5rem;color:#9ca3af;">
       These are the top 10 phenotypes that most closely match your uploaded image.
-    </p>
-  `;
+    </p>`;
+
+  let displayedCount = 0;
 
   for (const a of list2) {
     const aLen = a.length;
@@ -112,6 +89,8 @@ async function analyze() {
       const similarity = Math.round(a[0][i]);
       const imgSrc = `faces_lowres/basic/${name.toLowerCase()}${genderShort}.jpg`;
       const link = `http://humanphenotypes.net/basic/${name}.html`;
+      const mapName = name.charAt(0).toLowerCase() + name.slice(1);
+      const mapSrc = `http://humanphenotypes.net/basic/${mapName}.gif`;
 
       resultsContainer.innerHTML += `
         <div>
@@ -120,6 +99,7 @@ async function analyze() {
             <h3>${name}</h3>
             <span class="similarity">${similarity}% similarity</span>
           </a>
+          <img src="${mapSrc}" alt="Map of ${name}" style="width:100%;margin-top:6px;border-radius:8px;">
         </div>`;
       displayedCount++;
     }
@@ -131,6 +111,8 @@ async function analyze() {
       const similarity = Math.round(arr[i]);
       const imgSrc = `faces_lowres/${name.toLowerCase()}${genderShort}.jpg`;
       const link = `http://humanphenotypes.net/${name}.html`;
+      const mapName = name.charAt(0).toLowerCase() + name.slice(1);
+      const mapSrc = `http://humanphenotypes.net/${mapName}.gif`;
 
       resultsContainer.innerHTML += `
         <div>
@@ -139,6 +121,7 @@ async function analyze() {
             <h3>${name}</h3>
             <span class="similarity">${similarity}% similarity</span>
           </a>
+          <img src="${mapSrc}" alt="Map of ${name}" style="width:100%;margin-top:6px;border-radius:8px;">
         </div>`;
       displayedCount++;
     }
@@ -175,9 +158,7 @@ document.getElementById('imgInp').onchange = async function () {
 
   for (let i = 0; i < list.length; i++) {
     const len = list[i].length;
-    if (len > 1) {
-      list[i][0] = hexToF32(list[i][0]);
-    }
+    if (len > 1) list[i][0] = hexToF32(list[i][0]);
     for (let j = 0; j < list[i][len - 1].length; j++) {
       list[i][len - 1][j] = hexToF32(list[i][len - 1][j]);
     }
