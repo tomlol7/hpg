@@ -89,8 +89,6 @@ async function analyze() {
       const similarity = Math.round(a[0][i]);
       const imgSrc = `faces_lowres/basic/${name.toLowerCase()}${genderShort}.jpg`;
       const link = `http://humanphenotypes.net/basic/${name}.html`;
-      const mapName = name.charAt(0).toLowerCase() + name.slice(1);
-      const mapSrc = `http://humanphenotypes.net/basic/${mapName}.gif`;
 
       resultsContainer.innerHTML += `
         <div>
@@ -99,7 +97,6 @@ async function analyze() {
             <h3>${name}</h3>
             <span class="similarity">${similarity}% similarity</span>
           </a>
-          <img src="${mapSrc}" alt="Map of ${name}" style="width:100%;margin-top:6px;border-radius:8px;">
         </div>`;
       displayedCount++;
     }
@@ -111,8 +108,6 @@ async function analyze() {
       const similarity = Math.round(arr[i]);
       const imgSrc = `faces_lowres/${name.toLowerCase()}${genderShort}.jpg`;
       const link = `http://humanphenotypes.net/${name}.html`;
-      const mapName = name.charAt(0).toLowerCase() + name.slice(1);
-      const mapSrc = `http://humanphenotypes.net/${mapName}.gif`;
 
       resultsContainer.innerHTML += `
         <div>
@@ -121,7 +116,6 @@ async function analyze() {
             <h3>${name}</h3>
             <span class="similarity">${similarity}% similarity</span>
           </a>
-          <img src="${mapSrc}" alt="Map of ${name}" style="width:100%;margin-top:6px;border-radius:8px;">
         </div>`;
       displayedCount++;
     }
