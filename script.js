@@ -14,31 +14,6 @@ async function displayImg(url) {
 const dot = (a, b) => a.reduce((acc, n, i) => acc + n * b[i], 0);
 const cos = (a, b) => dot(a, b) / Math.sqrt(dot(a, a) * dot(b, b));
 
-// Compute descriptors for AMERICANO images at runtime
-async function loadAmericanoDescriptors() {
-  const americanoImages = [
-    { name: 'AMERICANO_caribm', file: 'faces_lowres/AMERICANO_caribm.png' },
-    { name: 'AMERICANO_caribf', file: 'faces_lowres/AMERICANO_caribf.png' },
-    // Add more AMERICANO images here as needed
-  ];
-
-  for (const item of americanoImages) {
-    const img = new Image();
-    img.src = item.file;
-    await img.decode();
-    const detection = await faceapi
-      .detectSingleFace(img)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (detection) {
-      // Push in same structure as list.json expects
-      // [[name, descriptorMale, descriptorFemale], [[nested]]]
-      list.push([[item.name, detection.descriptor, detection.descriptor], []]);
-    }
-  }
-}
-
 async function analyze() {
   if (!imgContainer.firstChild) {
     loading.textContent = 'No image to analyze.';
@@ -58,7 +33,7 @@ async function analyze() {
     return;
   }
 
-  // Automatically determine gender if confidence > 50%
+  // Determine gender
   let gender = '';
   let genderShort = '';
   if (detection.genderProbability >= 0.5) {
@@ -91,7 +66,6 @@ async function analyze() {
     return a[0][0][i];
   }
   list2.sort((a, b) => grpScore(b) - grpScore(a));
-
   list2 = list2.slice(0, 10);
 
   loading.textContent += ' | Results ready!';
@@ -111,11 +85,12 @@ async function analyze() {
     if (aLen > 1 && displayedCount < 10) {
       const name = a[0][0];
       const similarity = Math.round(a[0][i]);
-      const imgSrc = name.toLowerCase().startsWith('americano')
-        ? `faces_lowres/${name.toLowerCase()}.png`
+      const isAmericano = name.toLowerCase().startsWith('americano');
+      const imgSrc = isAmericano
+        ? `faces_lowres/${name.toLowerCase()}.jpg`
         : `faces_lowres/basic/${name.toLowerCase()}${genderShort}.jpg`;
-      const link = name.toLowerCase().startsWith('americano')
-        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9, -1)}`
+      const link = isAmericano
+        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9).toLowerCase()}`
         : `http://humanphenotypes.net/basic/${name}.html`;
 
       resultsContainer.innerHTML += `
@@ -134,11 +109,12 @@ async function analyze() {
       if (displayedCount >= 10) break;
       const name = arr[0];
       const similarity = Math.round(arr[i]);
-      const imgSrc = name.toLowerCase().startsWith('americano')
-        ? `faces_lowres/${name.toLowerCase()}.png`
+      const isAmericano = name.toLowerCase().startsWith('americano');
+      const imgSrc = isAmericano
+        ? `faces_lowres/${name.toLowerCase()}.jpg`
         : `faces_lowres/${name.toLowerCase()}${genderShort}.jpg`;
-      const link = name.toLowerCase().startsWith('americano')
-        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9, -1)}`
+      const link = isAmericano
+        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9).toLowerCase()}`
         : `http://humanphenotypes.net/${name}.html`;
 
       resultsContainer.innerHTML += `
@@ -165,23 +141,20 @@ document.getElementById('imgInp').onchange = async function () {
   }
 };
 
-// Load models + AMERICANO images
+// Load models + list.json
 (async () => {
   await faceapi.loadSsdMobilenetv1Model('models');
   await faceapi.loadFaceLandmarkModel('models');
   await faceapi.loadFaceRecognitionModel('models');
   await faceapi.loadAgeGenderModel('models');
 
-  // Load descriptors from list.json
   const response = await fetch('list.json');
   const text = await response.text();
   list = JSON.parse(text);
 
   // Convert base64 descriptors
   const hexToF32Arr = (str) =>
-    new Float32Array(
-      new Uint8Array([...atob(str)].map((c) => c.charCodeAt(0))).buffer
-    );
+    new Float32Array([...atob(str)].map((c) => c.charCodeAt(0)));
   const hexToF32 = (arr) => [arr[0], hexToF32Arr(arr[1]), hexToF32Arr(arr[2])];
 
   for (let i = 0; i < list.length; i++) {
@@ -191,9 +164,6 @@ document.getElementById('imgInp').onchange = async function () {
       list[i][len - 1][j] = hexToF32(list[i][len - 1][j]);
     }
   }
-
-  // Load AMERICANO descriptors dynamically
-  await loadAmericanoDescriptors();
 
   loading.textContent = 'Models fetched!';
   const loader = document.getElementById('loader');
