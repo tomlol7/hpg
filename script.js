@@ -1,4 +1,4 @@
-let list = [];
+let list;
 const loading = document.getElementById('loading');
 const imgContainer = document.getElementById('imgContainer');
 
@@ -33,7 +33,7 @@ async function analyze() {
     return;
   }
 
-  // Determine gender
+  // Automatically determine gender if confidence > 50%
   let gender = '';
   let genderShort = '';
   if (detection.genderProbability >= 0.5) {
@@ -46,7 +46,7 @@ async function analyze() {
     loading.innerHTML = `Gender: <span style="color:#ffcc00">Unknown</span>`;
   }
 
-  const i = genderShort === 'm' ? 1 : genderShort === 'f' ? 2 : 1;
+  const i = genderShort === 'm' ? 1 : genderShort === 'f' ? 2 : 1; // default to male index if unknown
 
   // Clone list for scoring
   let list2 = structuredClone(list);
@@ -66,6 +66,8 @@ async function analyze() {
     return a[0][0][i];
   }
   list2.sort((a, b) => grpScore(b) - grpScore(a));
+
+  // Keep only top 10 groups
   list2 = list2.slice(0, 10);
 
   loading.textContent += ' | Results ready!';
@@ -85,12 +87,14 @@ async function analyze() {
     if (aLen > 1 && displayedCount < 10) {
       const name = a[0][0];
       const similarity = Math.round(a[0][i]);
+
+      // Check for AMERICANO_
       const isAmericano = name.toLowerCase().startsWith('americano');
       const imgSrc = isAmericano
         ? `faces_lowres/${name.toLowerCase()}.jpg`
         : `faces_lowres/basic/${name.toLowerCase()}${genderShort}.jpg`;
       const link = isAmericano
-        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9).toLowerCase()}`
+        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9, -1)}`
         : `http://humanphenotypes.net/basic/${name}.html`;
 
       resultsContainer.innerHTML += `
@@ -109,12 +113,13 @@ async function analyze() {
       if (displayedCount >= 10) break;
       const name = arr[0];
       const similarity = Math.round(arr[i]);
+
       const isAmericano = name.toLowerCase().startsWith('americano');
       const imgSrc = isAmericano
         ? `faces_lowres/${name.toLowerCase()}.jpg`
         : `faces_lowres/${name.toLowerCase()}${genderShort}.jpg`;
       const link = isAmericano
-        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9).toLowerCase()}`
+        ? `https://sites.google.com/view/phenotypesoftheamericas/home/${name.slice(9, -1)}`
         : `http://humanphenotypes.net/${name}.html`;
 
       resultsContainer.innerHTML += `
@@ -141,13 +146,14 @@ document.getElementById('imgInp').onchange = async function () {
   }
 };
 
-// Load models + list.json
+// Load models + data
 (async () => {
   await faceapi.loadSsdMobilenetv1Model('models');
   await faceapi.loadFaceLandmarkModel('models');
   await faceapi.loadFaceRecognitionModel('models');
   await faceapi.loadAgeGenderModel('models');
 
+  // Load list.json
   const response = await fetch('list.json');
   const text = await response.text();
   list = JSON.parse(text);
