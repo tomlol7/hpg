@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Interactive Ancestry Editor (Vanilla)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #f7f8fa;
+    --card-bg: #ffffff;
+    --muted: #8b94a3;
+    --text: #1f2937;
+    --divider: #eceff3;
+    --euro: #0b66a8;
+    --subaf: #7a1c6a;
+    --ean:  #d94b2b;
+    --wan:  #4b2aa6;
+    --csa:  #218739;
+    --ea:   #c2261a;
+    --danger: #bb1f2c;
+    --success: #0b8a3e;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    font-size:14px;
+  }
+
+  html,body { height:100%; }
+  body{
+    margin:0;
+    background: linear-gradient(180deg,#fbfdff 0%,var(--bg) 100%);
+    display:flex;
+    justify-content:center;
+    padding:26px 14px;
+    color:var(--text);
+  }
+
+  /* main layout */
+  .layout {
+    width:980px;
+    display:flex;
+    gap:20px;
+    align-items:flex-start;
+  }
+
+  /* left side: editable card */
+  .card {
+    width:420px;
+    background:var(--card-bg);
+    border:1px solid rgba(15,23,42,0.03);
+    box-shadow: 0 12px 28px rgba(15,23,42,0.06);
+    overflow:hidden;
+    padding:0;
+    border-radius:0;
+  }
+
+  .card-header {
+    padding:12px 16px;
+    border-bottom:1px solid var(--divider);
+    background:#fff;
+  }
+  .card-header h3 { margin:0; font-size:16px; font-weight:700; }
+  .card-header p { margin:6px 0 0 0; color:var(--muted); font-size:13px; }
+
+  /* scrollable content region */
+  .card-body {
+    max-height: 72vh;
+    overflow-y:auto;
+    padding:10px 0 18px 0;
+  }
+
+  .controls {
+    display:flex;
+    gap:8px;
+    padding:10px 14px;
+    border-bottom:1px solid var(--divider);
+    background:#fff;
+  }
+  .controls button {
+    background:#0b66a8;
+    color:white;
+    border: none;
+    padding:8px 10px;
+    font-weight:600;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .controls button.secondary { background:#444; }
+  .controls .spacer { flex:1; }
+
+  .section {
+    margin: 10px 14px;
+    border:1px solid var(--divider);
+    background:#fff;
+    border-radius:0;
+    overflow:visible;
+  }
+
+  .section-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 12px;
+    color:#fff;
+    font-weight:700;
+    font-size:15px;
+  }
+
+  .section-header .left { display:flex; align-items:center; gap:10px; }
+  .section-header .left .title { font-weight:800; }
+  .section-header .right { display:flex; align-items:center; gap:10px; }
+
+  .list {
+    background: #fff;
+    padding:6px 12px;
+  }
+
+  .row {
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 6px;
+    border-bottom:1px solid var(--divider);
+  }
+  .row:last-child { border-bottom: none; }
+
+  .left {
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    min-width:0;
+  }
+
+  .dot { width:10px; height:10px; border-radius:50%; margin-top:6px; flex:0 0 10px; }
+
+  .label { display:flex; flex-direction:column; min-width:0; }
+  .label .name { font-weight:600; font-size:14px; color:var(--text); }
+  .label .note { font-size:12px; color:var(--muted); margin-top:4px; }
+
+  .pct { font-weight:800; font-size:14px; color:var(--text); flex:0 0 72px; text-align:right; }
+
+  .child { padding-left:28px; }
+
+  /* Inline editing styles */
+  [contenteditable="true"] { outline: none; }
+  .editable-name[contenteditable="true"] { padding:2px 4px; border-radius:2px; }
+  .editable-pct { background:transparent; border:0; width:60px; text-align:right; font-weight:800; font-size:14px; }
+
+  /* small action icons */
+  .actions { display:flex; gap:8px; align-items:center; }
+  .btn-icon {
+    border:1px solid var(--divider);
+    background:white;
+    padding:6px 8px;
+    cursor:pointer;
+    font-size:13px;
+  }
+
+  /* footer / totals area */
+  .footer {
+    padding:10px 14px;
+    border-top:1px solid var(--divider);
+    background:#fff;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .total { font-weight:800; font-size:15px; margin-left:auto; }
+  .total.ok { color:var(--success); }
+  .total.bad { color:var(--danger); }
+
+  /* export/import area (right column) */
+  .panel {
+    width:520px;
+    background:#fff;
+    border:1px solid rgba(15,23,42,0.03);
+    box-shadow: 0 10px 24px rgba(15,23,42,0.04);
+    padding:16px;
+  }
+  .panel h4 { margin:0 0 10px 0; font-size:16px; }
+  .panel textarea { width:100%; height:320px; font-family:monospace; font-size:13px; padding:10px; box-sizing:border-box; border:1px solid var(--divider); }
+  .panel .panel-row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .panel button { padding:8px 10px; cursor:pointer; font-weight:700; border:0; background:#0b66a8; color:#fff; }
+
+  /* color utilities for section headers */
+  .hdr-euro { background:var(--euro); }
+  .hdr-subaf { background:var(--subaf); }
+  .hdr-ean { background:var(--ean); }
+  .hdr-wan { background:var(--wan); }
+  .hdr-csa { background:var(--csa); }
+  .hdr-ea  { background:var(--ea); }
+
+  /* color dots */
+  .blue1 { background: #1f78d1; }
+  .blue2 { background: #6fb0ff; }
+  .teal  { background: #2aa79a; }
+  .magenta { background: #9a1f6a; }
+  .green { background: #43b556; }
+  .red { background: #c2261a; }
+  .pink { background: #ff4ea0; }
+  .purple { background: #7a1c6a; }
+  .yellow { background: #f5c542; }
+  .orange { background: #f08b2e; }
+
+  /* small responsiveness */
+  @media (max-width:1100px){
+    .layout { flex-direction:column; align-items:center; }
+    .panel { width: 92%; margin-top:18px; }
+    .card { width:92%; }
+  }
+</style>
+</head>
+<body>
+  <div class="layout">
+    <div class="card" role="region" aria-label="Ancestry editor">
+      <div class="card-header">
+        <h3>Editable Ancestry Results</h3>
+        <p>Click any name, note, or percentage to edit inline. Add/remove categories and subregions.</p>
+      </div>
+
+      <div class="controls">
+        <button id="addCategoryBtn">+ Add Category</button>
+        <button id="saveBtn" class="secondary">Save</button>
+        <div class="spacer"></div>
+        <button id="resetBtn" class="secondary">Reset</button>
+      </div>
+
+      <div class="card-body" id="cardBody">
+        <!-- Sections injected by JS -->
+      </div>
+
+      <div class="footer">
+        <div style="color:var(--muted)">Total</div>
+        <div id="totalValue" class="total">0%</div>
+      </div>
+    </div>
+
+    <div class="panel" aria-label="Export / Import">
+      <h4>Export / Import JSON</h4>
+      <div style="color:var(--muted); font-size:13px; margin-bottom:8px">You can export your current configuration, edit JSON, then import.</div>
+      <textarea id="exportJson" spellcheck="false"></textarea>
+      <div class="panel-row">
+        <button id="exportBtn">Export</button>
+        <button id="importBtn" style="background:#2d2d2d">Import</button>
+        <button id="clearStorageBtn" style="background:#b71c1c">Clear Saved</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------------------
+  Data model & helpers
+   - categories[] holds objects:
+     { id, name, colorClass, pct, subs: [ { id, name, note, pct, colorClass } ] }
+   - colorClass corresponds to dot classes and header classes
+----------------------*/
+const STORAGE_KEY = 'ancestry_editor_v1';
+
+let categories = [
+  {
+    id: genId(), name: 'European', colorClass: 'hdr-euro', pct: 50.3,
+    subs: [
+      { id: genId(), name: 'Southern European', note:'', pct: 42.5, colorClass: 'blue1' },
+      { id: genId(), name: 'Spanish & Portuguese', note:'', pct: 21.8, colorClass: 'blue2' },
+      { id: genId(), name: 'Italian', note:'', pct: 10.2, colorClass: 'blue1' },
+      { id: genId(), name: 'Broadly Southern European', note:'', pct: 10.5, colorClass: 'blue2' },
+      { id: genId(), name: 'Ashkenazi Jewish', note:'', pct: 2.2, colorClass: 'teal' },
+      { id: genId(), name: 'Northwestern European', note:'', pct: 1.3, colorClass: 'blue2' },
+      { id: genId(), name: 'British & Irish', note:'', pct: 1.0, colorClass: 'blue1' },
+      { id: genId(), name: 'Broadly Northwestern European', note:'', pct: 0.3, colorClass: 'blue2' },
+      { id: genId(), name: 'Broadly European', note:'', pct: 4.3, colorClass: 'blue1' }
+    ]
+  },
+  {
+    id: genId(), name: 'Sub-Saharan African', colorClass: 'hdr-subaf', pct: 32.4,
+    subs: [
+      { id: genId(), name: 'West African', note:'', pct: 16.2, colorClass: 'magenta' },
+      { id: genId(), name: 'Senegambian & Guinean', note:'', pct: 13.4, colorClass: 'pink' },
+      { id: genId(), name: 'Broadly West African', note:'', pct: 2.8, colorClass: 'magenta' },
+      { id: genId(), name: 'Congolese & Southern East African', note:'', pct: 15.0, colorClass: 'magenta' },
+      { id: genId(), name: 'Angolan & Congolese', note:'', pct: 10.4, colorClass: 'purple' },
+      { id: genId(), name: 'Southern East African', note:'', pct: 2.9, colorClass: 'magenta' },
+      { id: genId(), name: 'Broadly Congolese & Southern East African', note:'', pct: 1.7, colorClass: 'magenta' },
+      { id: genId(), name: 'Broadly Sub-Saharan African', note:'', pct: 1.2, colorClass: 'magenta' }
+    ]
+  },
+  {
+    id: genId(), name: 'East Asian & Native American', colorClass: 'hdr-ean', pct: 13.1,
+    subs: [
+      { id: genId(), name: 'Native American', note:'', pct: 10.1, colorClass: 'yellow' },
+      { id: genId(), name: 'Chinese & Southeast Asian', note:'', pct: 1.0, colorClass: 'orange' },
+      { id: genId(), name: 'Filipino & Austronesian', note:'', pct: 1.0, colorClass: 'yellow' },
+      { id: genId(), name: 'Broadly East Asian & Native American', note:'', pct: 2.0, colorClass: 'orange' }
+    ]
+  },
+  {
+    id: genId(), name: 'Western Asian & North African', colorClass: 'hdr-wan', pct: 3.0,
+    subs: [
+      { id: genId(), name: 'North African', note:'', pct: 2.2, colorClass: 'purple' },
+      { id: genId(), name: 'Arab, Egyptian & Levantine', note:'', pct: 0.5, colorClass: 'purple' },
+      { id: genId(), name: 'Egyptian', note:'', pct: 0.4, colorClass: 'purple' },
+      { id: genId(), name: 'Broadly Western Asian & North African', note:'', pct: 0.3, colorClass: 'purple' }
+    ]
+  },
+  {
+    id: genId(), name: 'Central & South Asian', colorClass: 'hdr-csa', pct: 99.5,
+    subs: [
+      { id: genId(), name: 'Northern Indian & Pakistani', note:'Gujarat, India (northern regions)', pct:98.3, colorClass:'green' },
+      { id: genId(), name: 'Bengali & Northeast Indian', note:'', pct:0.8, colorClass:'green' },
+      { id: genId(), name: 'Gujarati Patidar', note:'', pct:0.4, colorClass:'green' }
+    ]
+  },
+  {
+    id: genId(), name: 'East Asian', colorClass: 'hdr-ea', pct: 6.0,
+    subs: [
+      { id: genId(), name: 'Chinese', note:'', pct:0.7, colorClass:'red' },
+      { id: genId(), name: 'Northern Chinese & Tibetan', note:'', pct:0.4, colorClass:'red' },
+      { id: genId(), name: 'Broadly Chinese', note:'', pct:0.3, colorClass:'red' },
+      { id: genId(), name: 'Northern Asian', note:'', pct:0.2, colorClass:'red' },
+      { id: genId(), name: 'Manchurian & Mongolian', note:'', pct:0.2, colorClass:'red' },
+      { id: genId(), name: 'Broadly East Asian', note:'', pct:5.1, colorClass:'red' }
+    ]
+  }
+];
+
+function genId(){ return 'id_' + Math.random().toString(36).slice(2,9); }
+
+/* ---------- DOM references ---------- */
+const cardBody = document.getElementById('cardBody');
+const totalValueEl = document.getElementById('totalValue');
+const addCategoryBtn = document.getElementById('addCategoryBtn');
+const saveBtn = document.getElementById('saveBtn');
+const resetBtn = document.getElementById('resetBtn');
+const exportJsonEl = document.getElementById('exportJson');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const clearStorageBtn = document.getElementById('clearStorageBtn');
+
+/* ---------- Render ---------- */
+function render(){
+  cardBody.innerHTML = '';
+  categories.forEach(cat => {
+    const sec = document.createElement('div');
+    sec.className = 'section';
+    sec.dataset.id = cat.id;
+
+    // header
+    const hdr = document.createElement('div');
+    hdr.className = 'section-header ' + (cat.colorClass || '');
+    hdr.innerHTML = `
+      <div class="left">
+        <div class="title">${escapeHtml(cat.name)}</div>
+      </div>
+      <div class="right">
+        <div class="header-pct" data-cat-pct>${numFmt(cat.pct)}%</div>
+        <div class="actions">
+          <button class="btn-icon" title="Add subregion" data-add-sub>+</button>
+          <button class="btn-icon" title="Remove category" data-remove-cat>&times;</button>
+        </div>
+      </div>
+    `;
+
+    // allow inline edit of header name and pct
+    const titleEl = hdr.querySelector('.title');
+    titleEl.contentEditable = true;
+    titleEl.classList.add('editable-name');
+    titleEl.addEventListener('input', (e)=> {
+      cat.name = titleEl.innerText.trim();
+      // update export text live
+      syncSavePreview();
+    });
+
+    // clicking the header pct lets you edit category pct inline
+    const pctEl = hdr.querySelector('[data-cat-pct]');
+    pctEl.contentEditable = true;
+    pctEl.classList.add('editable-pct');
+    pctEl.addEventListener('input', () => {
+      // remove non-numeric chars except dot
+      const raw = pctEl.innerText.replace(/[^\d.]/g,'');
+      const val = parseFloat(raw || 0);
+      cat.pct = isFinite(val) ? val : 0;
+      pctEl.innerText = numFmt(cat.pct) + '%';
+      updateTotals();
+      syncSavePreview();
+    });
+    // fix formatting on blur
+    pctEl.addEventListener('blur', ()=> {
+      pctEl.innerText = numFmt(cat.pct) + '%';
+      updateTotals();
+      syncSavePreview();
+    });
+
+    // body / list
+    const list = document.createElement('div');
+    list.className = 'list';
+
+    cat.subs.forEach(sub => {
+      const row = document.createElement('div');
+      row.className = 'row child';
+      row.dataset.subId = sub.id;
+      row.innerHTML = `
+        <div class="left">
+          <div class="dot ${sub.colorClass || 'blue1'}" title="color"></div>
+          <div class="label">
+            <div class="name editable-name" contenteditable="true">${escapeHtml(sub.name)}</div>
+            <div class="note editable-note" contenteditable="true">${escapeHtml(sub.note || '')}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="pct editable-pct" contenteditable="true">${numFmt(sub.pct)}%</div>
+          <div class="actions">
+            <button class="btn-icon" data-remove-sub>×</button>
+          </div>
+        </div>
+      `;
+
+      // inline edits for name/note/pct
+      const nameEl = row.querySelector('.name');
+      nameEl.addEventListener('input', ()=> { sub.name = nameEl.innerText.trim(); syncSavePreview(); });
+
+      const noteEl = row.querySelector('.note');
+      noteEl.addEventListener('input', ()=> { sub.note = noteEl.innerText.trim(); syncSavePreview(); });
+
+      const pctSubEl = row.querySelector('.pct');
+      pctSubEl.addEventListener('input', ()=> {
+        const raw = pctSubEl.innerText.replace(/[^\d.]/g,'');
+        const val = parseFloat(raw || 0);
+        sub.pct = isFinite(val) ? val : 0;
+        pctSubEl.innerText = numFmt(sub.pct) + '%';
+        updateTotals();
+        syncSavePreview();
+      });
+      pctSubEl.addEventListener('blur', ()=> {
+        pctSubEl.innerText = numFmt(sub.pct) + '%';
+        updateTotals();
+        syncSavePreview();
+      });
+
+      // remove subregion
+      row.querySelector('[data-remove-sub]').addEventListener('click', ()=> {
+        const idx = cat.subs.findIndex(s=>s.id===sub.id);
+        if(idx>=0){ cat.subs.splice(idx,1); render(); syncSavePreview(); }
+      });
+
+      list.appendChild(row);
+    });
+
+    // add "add sub" handler & remove cat handler
+    hdr.querySelector('[data-add-sub]').addEventListener('click', ()=> {
+      const newSub = { id: genId(), name: 'New subregion', note:'', pct:0, colorClass:'blue1' };
+      cat.subs.push(newSub);
+      render();
+      // focus new row's name
+      requestAnimationFrame(()=> {
+        const newRow = cardBody.querySelector(`[data-sub-id="${newSub.id}"]`);
+        if(newRow) newRow.querySelector('.name').focus();
+      });
+      syncSavePreview();
+    });
+    hdr.querySelector('[data-remove-cat]').addEventListener('click', ()=> {
+      const idx = categories.findIndex(c=>c.id===cat.id);
+      if(idx>=0){ categories.splice(idx,1); render(); syncSavePreview(); }
+    });
+
+    sec.appendChild(hdr);
+    sec.appendChild(list);
+    cardBody.appendChild(sec);
+  });
+
+  updateTotals();
+}
+
+/* ---------- Utility & events ---------- */
+function numFmt(v){ return (Math.round(v*10)/10).toFixed(1); }
+
+function updateTotals(){
+  // compute total as sum of category pcts (note: these are top-level percentages)
+  const total = categories.reduce((s,c) => s + (Number(c.pct) || 0), 0);
+  const el = totalValueEl;
+  el.innerText = numFmt(total) + '%';
+  if(Math.abs(total - 100) < 0.05) {
+    el.classList.remove('bad'); el.classList.add('ok');
+  } else {
+    el.classList.remove('ok'); el.classList.add('bad');
+  }
+}
+
+/* Save/load to localStorage */
+function saveToStorage(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+    flashSaved();
+  } catch(e){ console.error('save failed', e); }
+}
+
+function loadFromStorage(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)) { categories = parsed; }
+    }
+  } catch(e){ console.warn('load failed', e); }
+}
+
+function syncSavePreview(){
+  // update export textarea for quick copy
+  exportJsonEl.value = JSON.stringify(categories, null, 2);
+}
+
+/* Export / Import handlers */
+exportBtn.addEventListener('click', ()=>{
+  exportJsonEl.value = JSON.stringify(categories, null, 2);
+  // also trigger download
+  const blob = new Blob([exportJsonEl.value], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ancestry-config.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener('click', ()=>{
+  try {
+    const raw = exportJsonEl.value;
+    const parsed = JSON.parse(raw);
+    if(!Array.isArray(parsed)) throw new Error('JSON must be an array of categories');
+    categories = parsed;
+    render();
+    saveToStorage();
+    alert('Imported successfully.');
+  } catch(e){
+    alert('Import error: ' + e.message);
+  }
+});
+
+clearStorageBtn.addEventListener('click', ()=>{
+  if(confirm('Clear saved data from localStorage?')) {
+    localStorage.removeItem(STORAGE_KEY);
+    alert('Saved data cleared. Reloading defaults.');
+    location.reload();
+  }
+});
+
+/* Add Category button */
+addCategoryBtn.addEventListener('click', ()=>{
+  const name = prompt('New category name','New Category');
+  if(!name) return;
+  const colorClass = prompt('Pick header color key (hdr-euro,hdr-subaf,hdr-ean,hdr-wan,hdr-csa,hdr-ea)', 'hdr-euro');
+  const cat = { id: genId(), name: name.trim(), colorClass: colorClass || 'hdr-euro', pct: 0, subs: [] };
+  categories.push(cat);
+  render();
+  saveToStorage();
+});
+
+/* Save / Reset */
+saveBtn.addEventListener('click', ()=> {
+  saveToStorage();
+  alert('Saved to localStorage.');
+});
+
+resetBtn.addEventListener('click', ()=> {
+  if(confirm('Reset to initial example data? This will overwrite current edits.')) {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+});
+
+/* flash saved small UI (temporary) */
+function flashSaved(){
+  saveBtn.innerText = 'Saved';
+  setTimeout(()=> saveBtn.innerText = 'Save', 1200);
+}
+
+/* small escaping helper */
+function escapeHtml(s=''){
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+/* initialize */
+(function init(){
+  // try load
+  loadFromStorage();
+  // if nothing in storage then categories remain default initial data
+  render();
+  syncSavePreview();
+  // autosave every 3s if changes - simple approach using beforeunload and manual Save
+  window.addEventListener('beforeunload', ()=> saveToStorage());
+})();
+</script>
+</body>
+</html>
