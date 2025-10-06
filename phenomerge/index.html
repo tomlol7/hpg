@@ -12,7 +12,7 @@
   .scroll-box img { width: 100%; margin-bottom: 0.5rem; cursor: grab; }
   #mergeBox { width: 400px; height: 400px; border: 2px dashed #666; display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.25rem; }
   #mergeBox img { width: 80px; height: 80px; object-fit: cover; }
-  #averageBtn { margin: 1rem; padding: 0.5rem 1rem; font-size: 1rem; }
+  #averageBtn, #clearBtn { margin: 1rem; padding: 0.5rem 1rem; font-size: 1rem; }
   canvas { border: 1px solid #000; margin-top: 1rem; }
 </style>
 </head>
@@ -27,6 +27,8 @@
   <div>
     <h2>Phenomerge Box</h2>
     <div id="mergeBox"></div>
+    <button id="averageBtn">Average Face</button>
+    <button id="clearBtn">Clear Merge Box</button>
   </div>
   <div>
     <h2>Female Phenotypes</h2>
@@ -34,7 +36,6 @@
     <div class="scroll-box" id="femaleBox"></div>
   </div>
 </div>
-<button id="averageBtn">Average Face</button>
 <canvas id="resultCanvas" width="400" height="400"></canvas>
 
 <script>
@@ -48,36 +49,44 @@ const mergeBox = document.getElementById('mergeBox');
 const resultCanvas = document.getElementById('resultCanvas');
 const ctx = resultCanvas.getContext('2d');
 
+// Flatten nested arrays to get filenames safely
+function getFilename(entry) {
+  if (typeof entry === 'string') return entry;
+  if (Array.isArray(entry)) return getFilename(entry[0]);
+  return null;
+}
+
 // Fetch list.json from parent folder
 fetch('../list.json')
   .then(res => res.json())
   .then(data => {
     list = data;
 
-    // Split male/female by last character
-    const malePhenotypes = list.filter(f => f[0].slice(-1).toLowerCase() === 'm');
-    const femalePhenotypes = list.filter(f => f[0].slice(-1).toLowerCase() === 'f');
+    const filenames = list.map(f => getFilename(f)).filter(Boolean);
+
+    const malePhenotypes = filenames.filter(name => name.slice(-1).toLowerCase() === 'm');
+    const femalePhenotypes = filenames.filter(name => name.slice(-1).toLowerCase() === 'f');
 
     populateScrollBox(maleBox, malePhenotypes);
     populateScrollBox(femaleBox, femalePhenotypes);
   });
 
-// Populate scroll box with images from parent folder
+// Populate scroll boxes
 function populateScrollBox(container, arr) {
   container.innerHTML = '';
-  arr.forEach(item => {
+  arr.forEach(filename => {
     const img = document.createElement('img');
-    img.src = `../faces_lowres/${item[0]}.jpg`;
-    img.alt = item[0];
+    img.src = `../faces_lowres/${filename}.jpg`;
+    img.alt = filename;
     img.draggable = true;
     img.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('text/plain', item[0]);
+      e.dataTransfer.setData('text/plain', filename);
     });
     container.appendChild(img);
   });
 }
 
-// Drag & Drop into mergeBox
+// Drag & Drop
 mergeBox.addEventListener('dragover', e => e.preventDefault());
 mergeBox.addEventListener('drop', e => {
   e.preventDefault();
@@ -96,7 +105,6 @@ mergeBox.addEventListener('drop', e => {
     return;
   }
 
-  // Add thumbnail to mergeBox
   const img = document.createElement('img');
   img.src = `../faces_lowres/${filename}.jpg`;
   img.alt = filename;
@@ -117,6 +125,13 @@ document.getElementById('femaleSearch').addEventListener('input', e => {
   });
 });
 
+// Clear merge box button
+document.getElementById('clearBtn').addEventListener('click', () => {
+  mergeBox.innerHTML = '';
+  mergeGender = null;
+  ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
+});
+
 // Average Face Button
 document.getElementById('averageBtn').addEventListener('click', async () => {
   if (!mergeBox.children.length) return alert('Add some phenotypes first.');
@@ -127,10 +142,8 @@ document.getElementById('averageBtn').addEventListener('click', async () => {
     return image;
   });
 
-  // Wait for all images to load
   await Promise.all(imgs.map(img => new Promise(res => { img.onload = res; })));
 
-  // Clear canvas
   ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
 
   const w = resultCanvas.width;
