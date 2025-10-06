@@ -56,8 +56,8 @@ function getFilename(entry) {
   return null;
 }
 
-// Fetch list.json from parent folder
-fetch('../list.json')
+// Fetch list.json from root folder
+fetch('/list.json')
   .then(res => res.json())
   .then(data => {
     list = data;
@@ -78,14 +78,12 @@ function populateScrollBox(container, arr) {
   arr.forEach(filename => {
     const lower = filename.toLowerCase();
     const img = document.createElement('img');
-    img.src = `../faces_lowres/${lower}.jpg`;
+    img.src = `/faces_lowres/${lower}.jpg`; // root path
     img.alt = filename;
     img.draggable = true;
-    img.onerror = () => {
-      img.src = '../faces_lowres/placeholder.jpg';
-    };
+    img.onerror = () => { img.src = '/faces_lowres/placeholder.jpg'; };
     img.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('text/plain', lower); // use lowercase for drag/drop
+      e.dataTransfer.setData('text/plain', lower); // lowercase for drag/drop
     });
     container.appendChild(img);
   });
@@ -111,7 +109,7 @@ mergeBox.addEventListener('drop', e => {
   }
 
   const img = document.createElement('img');
-  img.src = `../faces_lowres/${filename}.jpg`;
+  img.src = `/faces_lowres/${filename}.jpg`; // root path
   img.alt = filename;
   mergeBox.appendChild(img);
 });
