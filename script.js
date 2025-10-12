@@ -69,15 +69,15 @@ async function analyze() {
     }
 
     list2.sort((a, b) => grpScore(b) - grpScore(a));
-    list2 = list2.slice(0, 10); // Keep only top 10 groups
+    list2 = list2.slice(0, 15); // Keep top 15 groups
 
     loading.textContent += ' | Results ready!';
 
     const resultsContainer = document.getElementById('resultsContainer');
     resultsContainer.innerHTML = `
-        <h2 style="width:100%;text-align:center;margin-bottom:1rem;">Top 10 Match Results</h2>
+        <h2 style="width:100%;text-align:center;margin-bottom:1rem;">Top 15 Match Results</h2>
         <p style="width:100%;text-align:center;margin-bottom:1.5rem;color:#9ca3af;">
-            These are the top 10 phenotypes that most closely match your uploaded image.
+            These are the top 15 phenotypes that most closely match your uploaded image.
         </p>
     `;
 
@@ -87,47 +87,68 @@ async function analyze() {
         const aLen = a.length;
 
         // Main match
-        if (aLen > 1 && displayedCount < 10) {
+        if (aLen > 1 && displayedCount < 15) {
             const name = a[0][0];
             const similarity = Math.round(a[0][i]);
             const imgSrc = `faces_lowres/basic/${name.toLowerCase()}${genderShort}.jpg`;
             const link = `http://humanphenotypes.net/basic/${name}.html`;
 
-            resultsContainer.innerHTML += `
-                <div>
-                    <a href="${link}" target="_blank">
-                        <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
-                        <h3>${name}</h3>
-                        <span class="similarity">${similarity}% similarity</span>
-                    </a>
-                </div>
-            `;
+            resultsContainer.innerHTML += createCard(name, similarity, imgSrc, link);
             displayedCount++;
         }
 
         // Nested matches
         for (const arr of a[aLen - 1]) {
-            if (displayedCount >= 10) break;
+            if (displayedCount >= 15) break;
 
             const name = arr[0];
             const similarity = Math.round(arr[i]);
             const imgSrc = `faces_lowres/${name.toLowerCase()}${genderShort}.jpg`;
             const link = `http://humanphenotypes.net/${name}.html`;
 
-            resultsContainer.innerHTML += `
-                <div>
-                    <a href="${link}" target="_blank">
-                        <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
-                        <h3>${name}</h3>
-                        <span class="similarity">${similarity}% similarity</span>
-                    </a>
-                </div>
-            `;
+            resultsContainer.innerHTML += createCard(name, similarity, imgSrc, link);
             displayedCount++;
         }
 
-        if (displayedCount >= 10) break;
+        if (displayedCount >= 15) break;
     }
+
+    // Animate progress bars
+    animateProgressBars();
+}
+
+// Create result card
+function createCard(name, similarity, imgSrc, link) {
+    return `
+        <div class="result-card">
+            <a href="${link}" target="_blank">
+                <img src="${imgSrc}" alt="${name}" onerror="this.src='placeholder.png'">
+                <h3>${name}</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:0%;"></div>
+                </div>
+                <span class="similarity">${similarity}% similarity</span>
+            </a>
+        </div>
+    `;
+}
+
+// Animate yellow progress bars
+function animateProgressBars() {
+    const cards = document.querySelectorAll('.result-card');
+    cards.forEach(card => {
+        const similarityText = card.querySelector('.similarity').textContent;
+        const percent = parseInt(similarityText);
+        const bar = card.querySelector('.progress-fill');
+        let width = 0;
+        const interval = setInterval(() => {
+            if (width >= percent) clearInterval(interval);
+            else {
+                width++;
+                bar.style.width = width + '%';
+            }
+        }, 10);
+    });
 }
 
 // Handle file upload
