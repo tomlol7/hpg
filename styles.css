@@ -71,8 +71,8 @@ header {
 }
 
 header img {
-  width: 200px;
-  height: 200px;
+  width: 300px;
+  height: 100px;
   margin-bottom: 0.5rem;
   animation: float 6s ease-in-out infinite;
 }
