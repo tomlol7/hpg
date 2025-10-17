@@ -5,6 +5,12 @@
   box-sizing: border-box;
 }
 
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 body {
   background: #0f0f11;
   color: #f0f0f0;
@@ -44,7 +50,7 @@ body {
 }
 
 .discord-link:hover {
-  color: #7289da; /* Discord blurple */
+  color: #7289da;
 }
 
 .discord-icon {
@@ -71,9 +77,9 @@ header {
 }
 
 header img {
-  width: 694px;
-  height: 205px;
-  margin-bottom: 0.5rem;
+  width: 80%;
+  max-width: 700px;
+  margin: 0 auto 0.5rem auto;
   animation: float 6s ease-in-out infinite;
 }
 
@@ -101,18 +107,17 @@ header h4 {
   margin-bottom: 1.5rem;
   font-size: 1rem;
   text-align: center;
-  color: #ffffff; /* white text for contrast */
+  color: #ffffff;
   background: linear-gradient(
     90deg,
-    rgba(118, 83, 255, 0.7),  /* #7653ff with 70% opacity */
-    rgba(244, 96, 54, 0.7)    /* #f46036 with 70% opacity */
+    rgba(118, 83, 255, 0.7),
+    rgba(244, 96, 54, 0.7)
   );
-  border: none;
   padding: 1.2rem;
   border-radius: 10px;
   font-weight: 500;
   box-shadow: 0 0 20px rgba(118, 83, 255, 0.4);
-  backdrop-filter: blur(6px); /* optional: gives a nice frosted-glass effect */
+  backdrop-filter: blur(6px);
 }
 
 .upload-card {
@@ -146,7 +151,6 @@ input[type="file"]:hover {
 }
 
 .image-preview img {
-  max-width: 100%;
   border-radius: 12px;
   margin-top: 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
@@ -160,7 +164,7 @@ input[type="file"]:hover {
 }
 
 #loader {
-  display: none; /* You can add a spinner here later */
+  display: none;
 }
 
 /* ===================== */
@@ -170,7 +174,7 @@ input[type="file"]:hover {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 25px; /* space between cards */
+  gap: 25px;
   margin-top: 2rem;
   padding: 1rem;
   background: #1f1f23;
@@ -179,7 +183,7 @@ input[type="file"]:hover {
 }
 
 #resultsContainer div {
-  width: 180px; /* Each card width */
+  width: 180px;
   text-align: center;
   border: 1px solid #333;
   border-radius: 12px;
@@ -207,5 +211,55 @@ input[type="file"]:hover {
 .similarity {
   font-weight: bold;
   font-size: 1rem;
-  color: #ffcc00; /* shade the percentage */
+  color: #ffcc00;
+}
+
+/* ========================================= */
+/* MOBILE RESPONSIVENESS FIXES (≤600px wide) */
+/* ========================================= */
+@media (max-width: 600px) {
+  body {
+    padding: 1rem;
+  }
+
+  .topbar {
+    flex-direction: column;
+    padding: 0.6rem 1rem;
+    text-align: center;
+  }
+
+  header img {
+    width: 90%;
+    height: auto;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+  }
+
+  header h4 {
+    font-size: 1rem;
+  }
+
+  .container {
+    padding: 1rem;
+  }
+
+  .intro {
+    font-size: 0.9rem;
+    padding: 1rem;
+  }
+
+  #resultsContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #resultsContainer div {
+    width: 90%;
+  }
+
+  input[type="file"] {
+    width: 100%;
+  }
 }
