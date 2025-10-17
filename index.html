@@ -21,7 +21,133 @@
     <link rel="canonical" href="https://tomlol7.github.io/hpg">
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="icon.png" />
-    <link rel="stylesheet" href="styles.css" />
+
+    <style>
+      body {
+        background-color: #0f0f11;
+        color: #f0f0f0;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+      }
+
+      .topbar {
+        background: #18181b;
+        padding: 10px;
+        text-align: center;
+      }
+
+      .discord-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #ffffff;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .discord-link:hover {
+        opacity: 0.8;
+      }
+
+      .discord-icon {
+        width: 22px;
+        height: 22px;
+      }
+
+      header img {
+        width: 80px;
+        height: 80px;
+        border-radius: 16px;
+        margin-top: 20px;
+      }
+
+      header h1 {
+        margin: 10px 0 0 0;
+      }
+
+      header h4 {
+        font-weight: 400;
+        color: #aaa;
+      }
+
+      .intro {
+        max-width: 600px;
+        margin: 20px auto;
+        color: #ddd;
+        line-height: 1.6;
+      }
+
+      /* Modern upload zone */
+      .upload-card {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 30px auto;
+        padding: 30px;
+        border: 2px dashed #444;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 400px;
+        background: #1b1b1f;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .upload-card:hover {
+        border-color: #6c63ff;
+        background-color: #232329;
+      }
+
+      .upload-card.dragover {
+        background-color: #2a2a35;
+        border-color: #8a80ff;
+      }
+
+      .upload-card input[type="file"] {
+        display: none;
+      }
+
+      .upload-label {
+        font-size: 16px;
+        color: #cfcfcf;
+      }
+
+      #imgContainer {
+        margin-top: 20px;
+      }
+
+      #imgContainer img {
+        max-width: 250px;
+        border-radius: 12px;
+        box-shadow: 0 0 15px rgba(255,255,255,0.1);
+      }
+
+      #resultsContainer {
+        margin-top: 30px;
+      }
+
+      #loading {
+        display: none;
+        color: #ccc;
+      }
+
+      #loader {
+        display: none;
+        margin: 15px auto;
+        border: 4px solid #444;
+        border-top: 4px solid #6c63ff;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
     <div class="topbar">
@@ -46,17 +172,51 @@
       <div id="loader"></div>
       <div id="loading">For the best results, face the camera directly with good lighting...</div>
 
-      <div class="upload-card">
-        <label for="imgInp" class="upload-label">Select an image:</label>
+      <div class="upload-card" id="dropZone">
+        <label for="imgInp" class="upload-label">📷 Click or drag & drop an image here</label>
         <input accept="image/*" type="file" id="imgInp" />
       </div>
 
-      <div id="imgContainer" class="image-preview"></div>
-      <div id="resultsContainer" class="results"></div>
+      <div id="imgContainer"></div>
+      <div id="resultsContainer"></div>
     </div>
 
     <script src="face-api.min.js" defer></script>
-    <script src="script.js" defer></script>
+    <script>
+      const imgInp = document.getElementById('imgInp');
+      const dropZone = document.getElementById('dropZone');
+      const imgContainer = document.getElementById('imgContainer');
+
+      dropZone.addEventListener('click', () => imgInp.click());
+
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+      });
+
+      imgInp.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+      });
+
+      function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imgContainer.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        };
+        reader.readAsDataURL(file);
+      }
+    </script>
   </body>
 </html>
-
