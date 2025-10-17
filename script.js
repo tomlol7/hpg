@@ -1,14 +1,8 @@
 let list;
 const loading = document.getElementById('loading');
 const imgContainer = document.getElementById('imgContainer');
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const previewContainer = document.getElementById('previewContainer');
-const previewImage = document.getElementById('previewImage');
 
-// ===============================
-// IMAGE DISPLAY + PREVIEW HANDLER
-// ===============================
+// Display uploaded image
 async function displayImg(url) {
     const img = new Image();
     img.src = url;
@@ -16,60 +10,17 @@ async function displayImg(url) {
     imgContainer.replaceChildren(img);
 }
 
-// ===============================
-// FILE UPLOAD (MODERN DRAG + CLICK)
-// ===============================
-dropZone.addEventListener('click', () => fileInput.click());
-
-fileInput.addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-        const url = URL.createObjectURL(file);
-        previewImage.src = url;
-        previewContainer.style.display = 'flex';
-        await displayImg(url);
-        analyze();
-    }
-});
-
-dropZone.addEventListener('dragover', (event) => {
-    event.preventDefault();
-    dropZone.classList.add('dragover');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
-});
-
-dropZone.addEventListener('drop', async (event) => {
-    event.preventDefault();
-    dropZone.classList.remove('dragover');
-    const file = event.dataTransfer.files[0];
-    if (file) {
-        const url = URL.createObjectURL(file);
-        previewImage.src = url;
-        previewContainer.style.display = 'flex';
-        await displayImg(url);
-        analyze();
-    }
-});
-
-// ===============================
-// MATH HELPERS
-// ===============================
+// Math helpers
 const dot = (a, b) => a.reduce((acc, n, i) => acc + n * b[i], 0);
 const cos = (a, b) => dot(a, b) / Math.sqrt(dot(a, a) * dot(b, b));
 
-// ===============================
-// MAIN ANALYZE FUNCTION
-// ===============================
 async function analyze() {
     if (!imgContainer.firstChild) {
         loading.textContent = 'No image to analyze.';
         return;
     }
 
-    loading.textContent = 'Analyzing the image...';
+    loading.textContent = 'Analyzing the image. . .';
 
     const detection = await faceapi
         .detectSingleFace(imgContainer.firstChild)
@@ -82,7 +33,7 @@ async function analyze() {
         return;
     }
 
-    // Gender auto-detection
+    // Automatically determine gender if confidence > 50%
     let gender = '';
     let genderShort = '';
 
@@ -96,7 +47,7 @@ async function analyze() {
         loading.innerHTML = `Gender: <span style="color:#ffcc00">Unknown</span>`;
     }
 
-    const i = genderShort === 'm' ? 1 : genderShort === 'f' ? 2 : 1;
+    const i = genderShort === 'm' ? 1 : genderShort === 'f' ? 2 : 1; // default to male index if unknown
 
     // Clone list for scoring
     let list2 = structuredClone(list);
@@ -118,7 +69,7 @@ async function analyze() {
     }
 
     list2.sort((a, b) => grpScore(b) - grpScore(a));
-    list2 = list2.slice(0, 15);
+    list2 = list2.slice(0, 15); // Keep top 15 groups
 
     loading.textContent += ' | Results ready!';
 
@@ -135,6 +86,7 @@ async function analyze() {
     for (const a of list2) {
         const aLen = a.length;
 
+        // Main match
         if (aLen > 1 && displayedCount < 15) {
             const name = a[0][0];
             const similarity = Math.round(a[0][i]);
@@ -145,6 +97,7 @@ async function analyze() {
             displayedCount++;
         }
 
+        // Nested matches
         for (const arr of a[aLen - 1]) {
             if (displayedCount >= 15) break;
 
@@ -160,12 +113,11 @@ async function analyze() {
         if (displayedCount >= 15) break;
     }
 
+    // Animate progress bars
     animateProgressBars();
 }
 
-// ===============================
-// CARD + PROGRESS BAR ANIMATION
-// ===============================
+// Create result card
 function createCard(name, similarity, imgSrc, link) {
     return `
         <div class="result-card">
@@ -175,12 +127,13 @@ function createCard(name, similarity, imgSrc, link) {
                 <div class="progress-bar">
                     <div class="progress-fill" style="width:0%;"></div>
                 </div>
-                <span class="similarity" style="color:#60a5fa;">${similarity}% similarity</span>
+                <span class="similarity">${similarity}% similarity</span>
             </a>
         </div>
     `;
 }
 
+// Animate yellow progress bars
 function animateProgressBars() {
     const cards = document.querySelectorAll('.result-card');
     cards.forEach(card => {
@@ -198,9 +151,16 @@ function animateProgressBars() {
     });
 }
 
-// ===============================
-// MODEL + DATA LOADING
-// ===============================
+// Handle file upload
+document.getElementById('imgInp').onchange = async function () {
+    const [file] = this.files;
+    if (file) {
+        await displayImg(URL.createObjectURL(file));
+        analyze();
+    }
+};
+
+// Load models + data
 (async () => {
     await faceapi.loadSsdMobilenetv1Model('models');
     await faceapi.loadFaceLandmarkModel('models');
@@ -211,8 +171,10 @@ function animateProgressBars() {
     const text = await response.text();
     list = JSON.parse(text);
 
-    const hexToF32Arr = (str) =>
-        new Float32Array(new Uint8Array([...atob(str)].map((c) => c.charCodeAt(0))).buffer);
+    const hexToF32Arr = (str) => new Float32Array(
+        new Uint8Array([...atob(str)].map((c) => c.charCodeAt(0))).buffer
+    );
+
     const hexToF32 = (arr) => [arr[0], hexToF32Arr(arr[1]), hexToF32Arr(arr[2])];
 
     for (let i = 0; i < list.length; i++) {
@@ -229,3 +191,15 @@ function animateProgressBars() {
 
     if (imgContainer.children.length > 0) analyze();
 })();
+
+
+
+
+
+
+
+
+
+
+
+
