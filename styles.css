@@ -83,14 +83,12 @@ body {
   box-shadow: 0 0 15px rgba(147, 197, 253, 0.8);
 }
 
-/* Style for each result card link */
 .result-card a {
   text-decoration: none;
   color: inherit;
   display: block;
 }
 
-/* Improve spacing on the similarity percentage */
 .result-card .similarity {
   display: block;
   margin-top: 6px;
@@ -162,29 +160,42 @@ header h4 {
   backdrop-filter: blur(6px);
 }
 
+/* Modern Upload Card */
 .upload-card {
   text-align: center;
   margin-bottom: 1.5rem;
 }
 
+.upload-area {
+  border: 2px dashed #3b82f6;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.05);
+  padding: 2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #e4e4e7;
+}
+
+.upload-area:hover {
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.upload-area.dragover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #60a5fa;
+}
+
 .upload-label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-top: 1rem;
   font-weight: 600;
+  color: #93c5fd;
 }
 
 input[type="file"] {
-  background: #27272a;
-  color: #e4e4e7;
-  padding: 0.6rem;
-  border: 1px solid #3f3f46;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-input[type="file"]:hover {
-  background: #3f3f46;
+  display: none;
 }
 
 .image-preview {
@@ -196,6 +207,12 @@ input[type="file"]:hover {
   border-radius: 12px;
   margin-top: 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.image-preview img:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 20px rgba(147, 197, 253, 0.6);
 }
 
 #loading {
@@ -301,10 +318,6 @@ input[type="file"]:hover {
   #resultsContainer div {
     width: 100%;
     max-width: 360px;
-  }
-
-  input[type="file"] {
-    width: 100%;
   }
 
   .progress-bar {
