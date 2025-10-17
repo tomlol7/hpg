@@ -1,4 +1,6 @@
-/* General Reset */
+/* ===================== */
+/* GENERAL RESET         */
+/* ===================== */
 * {
   margin: 0;
   padding: 0;
@@ -58,13 +60,14 @@ body {
   height: 28px;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
+
 /* ===================== */
 /* PROGRESS BAR STYLING  */
 /* ===================== */
 .progress-bar {
   width: 100%;
   height: 10px;
-  background: #2d2d33; /* dark gray background */
+  background: #2d2d33;
   border-radius: 8px;
   overflow: hidden;
   margin: 8px 0;
@@ -73,11 +76,11 @@ body {
 
 .progress-fill {
   height: 100%;
-  width: 0%; /* starts empty, JS animates it */
-  background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
+  width: 0%;
+  background: linear-gradient(90deg, #93c5fd, #60a5fa, #3b82f6);
   border-radius: 8px;
   transition: width 0.3s ease-out;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 15px rgba(147, 197, 253, 0.8);
 }
 
 /* Style for each result card link */
@@ -92,7 +95,7 @@ body {
   display: block;
   margin-top: 6px;
   font-size: 0.95rem;
-  color: #60a5fa;
+  color: #93c5fd;
 }
 
 /* ===================== */
@@ -139,6 +142,9 @@ header h4 {
   font-weight: 400;
 }
 
+/* ===================== */
+/* INTRO / UPLOAD        */
+/* ===================== */
 .intro {
   margin-bottom: 1.5rem;
   font-size: 1rem;
@@ -219,7 +225,8 @@ input[type="file"]:hover {
 }
 
 #resultsContainer div {
-  width: 180px;
+  flex: 1 1 180px;
+  max-width: 200px;
   text-align: center;
   border: 1px solid #333;
   border-radius: 12px;
@@ -247,7 +254,7 @@ input[type="file"]:hover {
 .similarity {
   font-weight: bold;
   font-size: 1rem;
-  color: #ffcc00;
+  color: #93c5fd;
 }
 
 /* ========================================= */
@@ -292,10 +299,15 @@ input[type="file"]:hover {
   }
 
   #resultsContainer div {
-    width: 90%;
+    width: 100%;
+    max-width: 360px;
   }
 
   input[type="file"] {
     width: 100%;
+  }
+
+  .progress-bar {
+    height: 12px;
   }
 }
