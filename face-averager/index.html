@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Averager</title>
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+      background-color: #0f0f11;
+      color: #fff;
+      text-align: center;
+      padding: 40px;
+    }
+    input[type="file"] {
+      margin: 20px 0;
+      border: 2px solid #444;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    button {
+      background: #0078ff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #005fcc;
+    }
+    img {
+      margin-top: 30px;
+      max-width: 80%;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>Average Facer</h1>
+  <p>Upload up to 50 face images to generate an average.</p>
+
+  <input id="images" type="file" accept="image/*" multiple>
+  <br>
+  <button onclick="uploadFaces()">Create Average</button>
+  <p id="status"></p>
+  <img id="result" style="display:none" alt="Average face result">
+
+  <script>
+    async function uploadFaces() {
+      const files = document.getElementById("images").files;
+      const status = document.getElementById("status");
+      const result = document.getElementById("result");
+
+      if (files.length === 0) {
+        status.textContent = "Please upload at least one image.";
+        return;
+      }
+      if (files.length > 50) {
+        status.textContent = "You can upload a maximum of 50 images.";
+        return;
+      }
+
+      status.textContent = "Processing... please wait (this may take a bit)";
+      result.style.display = "none";
+
+      const formData = new FormData();
+      for (const file of files) formData.append("images", file);
+
+      try {
+        const res = await fetch("https://your-flask-app.onrender.com/average", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Server error");
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        result.src = url;
+        result.style.display = "block";
+        status.textContent = "Done!";
+      } catch (err) {
+        status.textContent = "Error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
