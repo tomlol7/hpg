@@ -1,198 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phenotype Mixer</title>
-<style>
-  body {
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 0;
-    padding: 0;
-  }
-  h1 { margin: 1rem 0; }
-  .container {
-    display: flex;
-    gap: 1rem;
-    width: 90%;
-    max-width: 1200px;
-  }
-  .scroll-box {
-    width: 200px;
-    height: 400px;
-    overflow-y: auto;
-    border: 1px solid #ccc;
-    padding: 0.5rem;
-  }
-  .scroll-box img {
-    width: 100%;
-    margin-bottom: 0.5rem;
-    cursor: grab;
-  }
-  #mergeBox {
-    width: 400px;
-    height: 400px;
-    border: 2px dashed #666;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    padding: 0.25rem;
-  }
-  #mergeBox img {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-  }
-  #averageBtn, #clearBtn {
-    margin: 1rem;
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-  }
-  canvas {
-    border: 1px solid #000;
-    margin-top: 1rem;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phenotype Mixer Pro | Structural v5.5</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://unpkg.com/delaunator@5.0.0/delaunator.min.js"></script>
+
+    <style>
+        :root { --accent: #ffff00; --bg: #0a0a0a; --card: #151515; --text: #eee; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        header { padding: 15px; border-bottom: 1px solid #222; text-align: center; }
+        header h1 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
+
+        .main-layout { display: grid; grid-template-columns: 260px 1fr 260px; flex: 1; overflow: hidden; gap: 1px; background: #222; }
+        
+        /* Sidebar Styles */
+        .sidebar { background: var(--bg); display: flex; flex-direction: column; padding: 15px; }
+        .sidebar h2 { font-size: 11px; text-transform: uppercase; color: #555; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+        .search-input { background: #111; border: 1px solid #333; color: #fff; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; }
+        .scroll-box { flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-right: 5px; }
+        .scroll-box img { width: 100%; border-radius: 4px; cursor: grab; border: 1px solid transparent; transition: 0.2s; }
+        .scroll-box img:hover { border-color: var(--accent); }
+
+        /* Central Workspace */
+        .workspace { background: #0e0e0e; padding: 20px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
+        
+        .merge-box { 
+            width: 100%; max-width: 500px; min-height: 120px; 
+            background: #111; border: 2px dashed #333; border-radius: 12px; 
+            display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; margin-bottom: 20px;
+            transition: 0.3s;
+        }
+        .merge-box.drag-over { border-color: var(--accent); background: #1a1a00; }
+        .merge-box img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #444; }
+
+        .controls { display: flex; gap: 15px; margin-bottom: 20px; }
+        button { 
+            background: var(--accent); color: #000; border: none; padding: 12px 24px; 
+            font-weight: 800; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 12px;
+        }
+        button:disabled { background: #222; color: #555; cursor: not-allowed; }
+        #clearBtn { background: #333; color: #fff; }
+
+        #result-canvas { background: #000; border-radius: 12px; border: 1px solid #333; max-width: 100%; height: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        #status { font-family: 'Courier New', monospace; font-size: 11px; color: #00ff00; margin-top: 10px; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #333; }
+    </style>
 </head>
 <body>
-<h1>Phenotype Mixer</h1>
-<div class="container">
-  <div>
-    <h2>Male Phenotypes</h2>
-    <input type="text" id="maleSearch" placeholder="Search male..." />
-    <div class="scroll-box" id="maleBox"></div>
-  </div>
-  <div>
-    <h2>Phenomerge Box</h2>
-    <div id="mergeBox"></div>
-    <button id="averageBtn">Average Face</button>
-    <button id="clearBtn">Clear Merge Box</button>
-  </div>
-  <div>
-    <h2>Female Phenotypes</h2>
-    <input type="text" id="femaleSearch" placeholder="Search female..." />
-    <div class="scroll-box" id="femaleBox"></div>
-  </div>
+
+<header>
+    <h1>Structural Phenotype Mixer <small style="font-size: 10px; opacity: 0.5;">v5.5</small></h1>
+</header>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <h2>Male Phenotypes</h2>
+        <input type="text" class="search-input" id="maleSearch" placeholder="Filter male subjects...">
+        <div class="scroll-box" id="maleBox"></div>
+    </div>
+
+    <div class="workspace">
+        <div class="merge-box" id="mergeBox">
+            <div id="placeholder-text" style="color: #444; font-size: 12px; margin: auto;">DRAG PHENOTYPES HERE</div>
+        </div>
+
+        <div class="controls">
+            <button id="avgBtn" onclick="processAverage()" disabled>BOOTING AI...</button>
+            <button id="clearBtn" onclick="clearBox()">CLEAR BOX</button>
+            <button id="saveBtn" style="background: #fff;" onclick="saveResult()" disabled>SAVE HD</button>
+        </div>
+
+        <div id="status">Initializing Neural Networks...</div>
+        <canvas id="result-canvas"></canvas>
+    </div>
+
+    <div class="sidebar">
+        <h2>Female Phenotypes</h2>
+        <input type="text" class="search-input" id="femaleSearch" placeholder="Filter female subjects...">
+        <div class="scroll-box" id="femaleBox"></div>
+    </div>
 </div>
-<canvas id="resultCanvas" width="400" height="400"></canvas>
 
 <script>
-let list = [];
-let mergeGender = null;
-const MAX_MERGE = 50;
-const maleBox = document.getElementById('maleBox');
-const femaleBox = document.getElementById('femaleBox');
-const mergeBox = document.getElementById('mergeBox');
-const resultCanvas = document.getElementById('resultCanvas');
-const ctx = resultCanvas.getContext('2d');
+    const mergeBox = document.getElementById('mergeBox');
+    const status = document.getElementById('status');
+    const avgBtn = document.getElementById('avgBtn');
+    const canvas = document.getElementById('result-canvas');
+    const ctx = canvas.getContext('2d');
 
-// Flatten nested arrays to get filenames safely
-function getFilename(entry) {
-  if (typeof entry === 'string') return entry;
-  if (Array.isArray(entry)) return getFilename(entry[0]);
-  return null;
-}
+    // Load your database
+    async function initSystem() {
+        if (typeof faceapi === 'undefined') { setTimeout(initSystem, 300); return; }
+        try {
+            const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            
+            // Fetch list.json
+            const res = await fetch('list.json');
+            const data = await res.json();
+            populateBoxes(data);
 
-// Fetch list.json from phenomerge folder
-fetch('list.json')
-  .then(res => res.json())
-  .then(data => {
-    list = data;
-    const baseNames = list.map(f => getFilename(f)).filter(Boolean);
-    const malePhenotypes = baseNames.filter(name => name.slice(-1).toLowerCase() === 'm');
-    const femalePhenotypes = baseNames.filter(name => name.slice(-1).toLowerCase() === 'f');
-    populateScrollBox(maleBox, malePhenotypes);
-    populateScrollBox(femaleBox, femalePhenotypes);
-  });
+            status.innerText = "System Live. Drag subjects to merge.";
+            avgBtn.innerText = "GENERATE AVERAGE";
+            avgBtn.disabled = false;
+        } catch (err) {
+            status.innerText = "Error: Models or list.json not found.";
+        }
+    }
 
-// Populate scroll boxes
-function populateScrollBox(container, arr) {
-  container.innerHTML = '';
-  arr.forEach(filename => {
-    const lower = filename.toLowerCase();
-    const img = document.createElement('img');
-    img.src = `/faces_lowres/${lower}.jpg`; // root path
-    img.alt = filename;
-    img.draggable = true;
-    img.onerror = () => { img.src = '/faces_lowres/placeholder.jpg'; };
-    img.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', lower); });
-    container.appendChild(img);
-  });
-}
+    function populateBoxes(list) {
+        const maleContainer = document.getElementById('maleBox');
+        const femaleContainer = document.getElementById('femaleBox');
+        
+        list.forEach(item => {
+            const filename = Array.isArray(item) ? item[0] : item;
+            const gender = filename.slice(-1).toLowerCase();
+            const img = document.createElement('img');
+            img.src = `/faces_lowres/${filename.toLowerCase()}.jpg`;
+            img.dataset.filename = filename;
+            img.draggable = true;
+            img.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', img.src));
+            
+            if (gender === 'm') maleContainer.appendChild(img);
+            else femaleContainer.appendChild(img);
+        });
+    }
 
-// Drag & Drop mergeBox
-mergeBox.addEventListener('dragover', e => e.preventDefault());
-mergeBox.addEventListener('drop', e => {
-  e.preventDefault();
-  const filename = e.dataTransfer.getData('text/plain');
-  if (!filename) return;
-  const genderChar = filename.slice(-1).toLowerCase();
-  if (!mergeGender) mergeGender = genderChar;
-  if (mergeGender !== genderChar) {
-    alert('You can only merge one gender at a time.');
-    return;
-  }
-  if (mergeBox.children.length >= MAX_MERGE) {
-    alert(`Maximum ${MAX_MERGE} faces allowed.`);
-    return;
-  }
-  const img = document.createElement('img');
-  img.src = `/faces_lowres/${filename}.jpg`;
-  img.alt = filename;
-  mergeBox.appendChild(img);
-});
+    // Drag & Drop Handlers
+    mergeBox.addEventListener('dragover', e => { e.preventDefault(); mergeBox.classList.add('drag-over'); });
+    mergeBox.addEventListener('dragleave', () => mergeBox.classList.remove('drag-over'));
+    mergeBox.addEventListener('drop', e => {
+        e.preventDefault();
+        mergeBox.classList.remove('drag-over');
+        document.getElementById('placeholder-text').style.display = 'none';
+        
+        const imgSrc = e.dataTransfer.getData('text/plain');
+        if (mergeBox.querySelectorAll('img').length >= 20) return alert("Max 20 subjects.");
+        
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        mergeBox.appendChild(img);
+    });
 
-// Search filtering
-document.getElementById('maleSearch').addEventListener('input', e => {
-  const query = e.target.value.toLowerCase();
-  Array.from(maleBox.children).forEach(img => {
-    img.style.display = img.alt.toLowerCase().includes(query) ? 'block' : 'none';
-  });
-});
-document.getElementById('femaleSearch').addEventListener('input', e => {
-  const query = e.target.value.toLowerCase();
-  Array.from(femaleBox.children).forEach(img => {
-    img.style.display = img.alt.toLowerCase().includes(query) ? 'block' : 'none';
-  });
-});
+    async function processAverage() {
+        const imgsInBox = mergeBox.querySelectorAll('img');
+        if (imgsInBox.length < 2) return alert("Add at least 2 subjects.");
 
-// Clear merge box
-document.getElementById('clearBtn').addEventListener('click', () => {
-  mergeBox.innerHTML = '';
-  mergeGender = null;
-  ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
-});
+        avgBtn.disabled = true;
+        status.innerText = "Processing landmarks...";
+        
+        const W = 600, H = 750; // Output standard
+        canvas.width = W; canvas.height = H;
 
-// Average Face using alpha blending
-document.getElementById('averageBtn').addEventListener('click', async () => {
-  if (!mergeBox.children.length) return alert('Add some phenotypes first.');
+        const subjects = [];
+        for (let el of imgsInBox) {
+            const tempImg = new Image();
+            tempImg.src = el.src;
+            await new Promise(r => tempImg.onload = r);
+            
+            const det = await faceapi.detectSingleFace(tempImg).withFaceLandmarks();
+            if (det) {
+                const norm = getNormalization(det.landmarks, W, H);
+                const normCanvas = applyNormalization(tempImg, norm);
+                const detN = await faceapi.detectSingleFace(normCanvas).withFaceLandmarks();
+                if (detN) {
+                    subjects.push({ canvas: normCanvas, pts: addMetaPoints(detN.landmarks.positions, W, H) });
+                }
+            }
+        }
 
-  const imgs = Array.from(mergeBox.children).map(img => {
-    const image = new Image();
-    image.src = img.src;
-    return image;
-  });
+        if (subjects.length === 0) {
+            status.innerText = "Detection failed for all subjects.";
+            avgBtn.disabled = false;
+            return;
+        }
 
-  await Promise.all(imgs.map(img => new Promise(res => { img.onload = res; })));
+        // Calculate Average Skeleton
+        const meanPts = subjects[0].pts.map((_, i) => {
+            let x = 0, y = 0;
+            subjects.forEach(s => { x += s.pts[i].x; y += s.pts[i].y; });
+            return { x: x / subjects.length, y: y / subjects.length };
+        });
 
-  const w = resultCanvas.width;
-  const h = resultCanvas.height;
-  ctx.clearRect(0, 0, w, h);
+        // Warp & Blend
+        status.innerText = `Merging ${subjects.length} phenotypes...`;
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = W; finalCanvas.height = H;
+        const fCtx = finalCanvas.getContext('2d');
+        const triangles = new Delaunator(meanPts.map(p => [p.x, p.y]).flat()).triangles;
 
-  ctx.globalAlpha = 1 / imgs.length; // alpha blending
-  imgs.forEach(img => {
-    const ratio = Math.min(w / img.width, h / img.height);
-    const iw = img.width * ratio;
-    const ih = img.height * ratio;
-    const x = (w - iw) / 2;
-    const y = (h - ih) / 2;
-    ctx.drawImage(img, x, y, iw, ih);
-  });
-  ctx.globalAlpha = 1; // reset alpha
-});
+        subjects.forEach((s, idx) => {
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = W; tCanvas.height = H;
+            const tCtx = tCanvas.getContext('2d');
+            for (let i = 0; i < triangles.length; i += 3) {
+                const tri = [triangles[i], triangles[i+1], triangles[i+2]];
+                drawSeamlessTriangle(tCtx, s.canvas, tri.map(j => s.pts[j]), tri.map(j => meanPts[j]));
+            }
+            fCtx.globalAlpha = 1 / (idx + 1);
+            fCtx.drawImage(tCanvas, 0, 0);
+        });
+
+        ctx.clearRect(0,0,W,H);
+        ctx.drawImage(finalCanvas, 0, 0);
+        status.innerText = "Synthesis Complete.";
+        avgBtn.disabled = false;
+        document.getElementById('saveBtn').disabled = false;
+    }
+
+    // --- Core Engine Functions (Warping & Normalization) ---
+
+    function getNormalization(lm, tw, th) {
+        const le = lm.getLeftEye(), re = lm.getRightEye();
+        const lC = { x: (le[0].x + le[3].x)/2, y: (le[0].y + le[3].y)/2 };
+        const rC = { x: (re[0].x + re[3].x)/2, y: (re[0].y + re[3].y)/2 };
+        const dx = rC.x - lC.x, dy = rC.y - lC.y;
+        return { angle: Math.atan2(dy, dx), scale: (tw * 0.28) / Math.sqrt(dx*dx + dy*dy), center: lC, tw, th };
+    }
+
+    function applyNormalization(img, n) {
+        const c = document.createElement('canvas'); c.width = n.tw; c.height = n.th;
+        const x = c.getContext('2d');
+        x.translate(n.tw * 0.36, n.th * 0.42); x.rotate(-n.angle); x.scale(n.scale, n.scale);
+        x.drawImage(img, -n.center.x, -n.center.y);
+        return c;
+    }
+
+    function addMetaPoints(pts, w, h) {
+        let p = pts.map(pt => ({ x: pt.x, y: pt.y }));
+        p.push({x:0,y:0}, {x:w,y:0}, {x:0,y:h}, {x:w,y:h}, {x:w/2,y:0}, {x:w/2,y:h}, {x:0,y:h/2}, {x:w,y:h/2});
+        return p;
+    }
+
+    function drawSeamlessTriangle(xc, img, src, dst) {
+        const m = getAffine(src, dst); if (!m) return;
+        const cx = (dst[0].x + dst[1].x + dst[2].x) / 3, cy = (dst[0].y + dst[1].y + dst[2].y) / 3;
+        xc.save(); xc.beginPath();
+        dst.forEach((p, i) => {
+            const dx = p.x - cx, dy = p.y - cy, d = Math.sqrt(dx*dx + dy*dy);
+            const ox = p.x + (dx/d) * 0.5, oy = p.y + (dy/d) * 0.5;
+            if (i === 0) xc.moveTo(ox, oy); else xc.lineTo(ox, oy);
+        });
+        xc.closePath(); xc.clip();
+        xc.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+        xc.drawImage(img, 0, 0); xc.restore();
+    }
+
+    function getAffine(s, d) {
+        const x0=s[0].x, y0=s[0].y, x1=s[1].x, y1=s[1].y, x2=s[2].x, y2=s[2].y;
+        const u0=d[0].x, v0=d[0].y, u1=d[1].x, v1=d[1].y, u2=d[2].x, v2=d[2].y;
+        const det = (x1-x0)*(y2-y0) - (x2-x0)*(y1-y0);
+        if (Math.abs(det) < 0.1) return null;
+        return [
+            ((u1-u0)*(y2-y0) - (u2-u0)*(y1-y0)) / det,
+            ((v1-v0)*(y2-y0) - (v2-v0)*(y1-y0)) / det,
+            ((x1-x0)*(u2-u0) - (x2-x0)*(u1-u0)) / det,
+            ((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0)) / det,
+            u0 - (((u1-u0)*(y2-y0) - (u2-u0)*(y1-y0)) / det)*x0 - (((x1-x0)*(u2-u0) - (x2-x0)*(u1-u0)) / det)*y0,
+            v0 - (((v1-v0)*(y2-y0) - (v2-v0)*(y1-y0)) / det)*x0 - (((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0)) / det)*y0
+        ];
+    }
+
+    function clearBox() {
+        mergeBox.innerHTML = '<div id="placeholder-text" style="color: #444; font-size: 12px; margin: auto;">DRAG PHENOTYPES HERE</div>';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('saveBtn').disabled = true;
+    }
+
+    function saveResult() {
+        const l = document.createElement('a');
+        l.download = `phenotype_average_${Date.now()}.png`;
+        l.href = canvas.toDataURL();
+        l.click();
+    }
+
+    // Search logic
+    document.getElementById('maleSearch').oninput = e => filterList('maleBox', e.target.value);
+    document.getElementById('femaleSearch').oninput = e => filterList('femaleBox', e.target.value);
+
+    function filterList(boxId, query) {
+        const imgs = document.getElementById(boxId).querySelectorAll('img');
+        imgs.forEach(img => img.style.display = img.dataset.filename.toLowerCase().includes(query.toLowerCase()) ? 'block' : 'none');
+    }
+
+    window.onload = initSystem;
 </script>
 </body>
 </html>
