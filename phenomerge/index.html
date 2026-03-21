@@ -2,54 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phenotype Mixer Pro | Structural v5.5</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phenotype Mixer Pro | Mobile v5.5</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://unpkg.com/delaunator@5.0.0/delaunator.min.js"></script>
 
     <style>
         :root { --accent: #ffff00; --bg: #0a0a0a; --card: #151515; --text: #eee; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
         
-        header { padding: 15px; border-bottom: 1px solid #222; text-align: center; }
-        header h1 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
+        header { padding: 15px; border-bottom: 1px solid #222; text-align: center; position: sticky; top: 0; background: var(--bg); z-index: 100; }
+        header h1 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
 
-        .main-layout { display: grid; grid-template-columns: 260px 1fr 260px; flex: 1; overflow: hidden; gap: 1px; background: #222; }
+        /* Mobile First Layout */
+        .main-layout { display: flex; flex-direction: column; flex: 1; gap: 10px; padding: 10px; }
         
-        /* Sidebar Styles */
-        .sidebar { background: var(--bg); display: flex; flex-direction: column; padding: 15px; }
-        .sidebar h2 { font-size: 11px; text-transform: uppercase; color: #555; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
-        .search-input { background: #111; border: 1px solid #333; color: #fff; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; }
-        .scroll-box { flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-right: 5px; }
-        .scroll-box img { width: 100%; border-radius: 4px; cursor: grab; border: 1px solid transparent; transition: 0.2s; }
-        .scroll-box img:hover { border-color: var(--accent); }
-
-        /* Central Workspace */
-        .workspace { background: #0e0e0e; padding: 20px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
+        /* Workspace at top for mobile visibility */
+        .workspace { background: #0e0e0e; padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; border: 1px solid #222; order: 1; }
         
         .merge-box { 
-            width: 100%; max-width: 500px; min-height: 120px; 
+            width: 100%; box-sizing: border-box; min-height: 100px; 
             background: #111; border: 2px dashed #333; border-radius: 12px; 
-            display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; margin-bottom: 20px;
-            transition: 0.3s;
+            display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; margin-bottom: 15px;
         }
-        .merge-box.drag-over { border-color: var(--accent); background: #1a1a00; }
-        .merge-box img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #444; }
+        .merge-box img { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #444; }
 
-        .controls { display: flex; gap: 15px; margin-bottom: 20px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 15px; }
         button { 
-            background: var(--accent); color: #000; border: none; padding: 12px 24px; 
-            font-weight: 800; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 12px;
+            background: var(--accent); color: #000; border: none; padding: 15px; 
+            font-weight: 800; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 11px;
         }
-        button:disabled { background: #222; color: #555; cursor: not-allowed; }
+        button:disabled { background: #222; color: #555; }
         #clearBtn { background: #333; color: #fff; }
+        #saveBtn { background: #fff; grid-column: span 2; }
 
-        #result-canvas { background: #000; border-radius: 12px; border: 1px solid #333; max-width: 100%; height: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        #status { font-family: 'Courier New', monospace; font-size: 11px; color: #00ff00; margin-top: 10px; }
+        #result-canvas { background: #000; border-radius: 8px; border: 1px solid #333; width: 100%; height: auto; max-width: 400px; }
+        #status { font-family: monospace; font-size: 10px; color: #00ff00; margin-bottom: 10px; text-align: center; }
 
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #333; }
+        /* Sidebars become scrollable sections below */
+        .sidebar { background: var(--card); border-radius: 12px; padding: 15px; order: 2; border: 1px solid #222; }
+        .sidebar h2 { font-size: 11px; text-transform: uppercase; color: var(--accent); margin: 0 0 10px 0; }
+        .search-input { width: 100%; box-sizing: border-box; background: #000; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 14px; }
+        
+        .scroll-box { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; 
+            max-height: 300px; overflow-y: auto; padding-right: 5px;
+        }
+        .scroll-box img { width: 100%; aspect-ratio: 1; border-radius: 4px; object-fit: cover; border: 1px solid transparent; }
+
+        /* Desktop Adjustments */
+        @media (min-width: 900px) {
+            body { height: 100vh; overflow: hidden; }
+            .main-layout { display: grid; grid-template-columns: 300px 1fr 300px; overflow: hidden; height: calc(100vh - 60px); }
+            .sidebar { order: unset; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+            .workspace { order: unset; height: 100%; overflow-y: auto; }
+            .scroll-box { flex: 1; max-height: none; }
+        }
     </style>
 </head>
 <body>
@@ -59,30 +68,30 @@
 </header>
 
 <div class="main-layout">
-    <div class="sidebar">
-        <h2>Male Phenotypes</h2>
-        <input type="text" class="search-input" id="maleSearch" placeholder="Filter male subjects...">
-        <div class="scroll-box" id="maleBox"></div>
-    </div>
-
     <div class="workspace">
+        <div id="status">Initializing Neural Networks...</div>
         <div class="merge-box" id="mergeBox">
-            <div id="placeholder-text" style="color: #444; font-size: 12px; margin: auto;">DRAG PHENOTYPES HERE</div>
+            <div id="placeholder-text" style="color: #444; font-size: 12px; margin: auto;">TAP PHENOTYPES TO ADD</div>
         </div>
 
         <div class="controls">
             <button id="avgBtn" onclick="processAverage()" disabled>BOOTING AI...</button>
-            <button id="clearBtn" onclick="clearBox()">CLEAR BOX</button>
-            <button id="saveBtn" style="background: #fff;" onclick="saveResult()" disabled>SAVE HD</button>
+            <button id="clearBtn" onclick="clearBox()">CLEAR</button>
+            <button id="saveBtn" onclick="saveResult()" disabled>SAVE HD RESULT</button>
         </div>
 
-        <div id="status">Initializing Neural Networks...</div>
         <canvas id="result-canvas"></canvas>
     </div>
 
     <div class="sidebar">
+        <h2>Male Phenotypes</h2>
+        <input type="text" class="search-input" id="maleSearch" placeholder="Search male...">
+        <div class="scroll-box" id="maleBox"></div>
+    </div>
+
+    <div class="sidebar">
         <h2>Female Phenotypes</h2>
-        <input type="text" class="search-input" id="femaleSearch" placeholder="Filter female subjects...">
+        <input type="text" class="search-input" id="femaleSearch" placeholder="Search female...">
         <div class="scroll-box" id="femaleBox"></div>
     </div>
 </div>
@@ -94,7 +103,6 @@
     const canvas = document.getElementById('result-canvas');
     const ctx = canvas.getContext('2d');
 
-    // Load your database
     async function initSystem() {
         if (typeof faceapi === 'undefined') { setTimeout(initSystem, 300); return; }
         try {
@@ -102,16 +110,15 @@
             await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
             await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
             
-            // Fetch list.json
             const res = await fetch('list.json');
             const data = await res.json();
             populateBoxes(data);
 
-            status.innerText = "System Live. Drag subjects to merge.";
+            status.innerText = "Neural Engine Ready.";
             avgBtn.innerText = "GENERATE AVERAGE";
             avgBtn.disabled = false;
         } catch (err) {
-            status.innerText = "Error: Models or list.json not found.";
+            status.innerText = "Network Error: Check list.json";
         }
     }
 
@@ -125,38 +132,40 @@
             const img = document.createElement('img');
             img.src = `/faces_lowres/${filename.toLowerCase()}.jpg`;
             img.dataset.filename = filename;
-            img.draggable = true;
-            img.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', img.src));
+            
+            // Touch/Click to add instead of just drag
+            img.onclick = () => addToMerge(img.src);
             
             if (gender === 'm') maleContainer.appendChild(img);
             else femaleContainer.appendChild(img);
         });
     }
 
-    // Drag & Drop Handlers
-    mergeBox.addEventListener('dragover', e => { e.preventDefault(); mergeBox.classList.add('drag-over'); });
-    mergeBox.addEventListener('dragleave', () => mergeBox.classList.remove('drag-over'));
-    mergeBox.addEventListener('drop', e => {
-        e.preventDefault();
-        mergeBox.classList.remove('drag-over');
+    function addToMerge(src) {
         document.getElementById('placeholder-text').style.display = 'none';
-        
-        const imgSrc = e.dataTransfer.getData('text/plain');
-        if (mergeBox.querySelectorAll('img').length >= 20) return alert("Max 20 subjects.");
+        if (mergeBox.querySelectorAll('img').length >= 20) return alert("Max 20 reached.");
         
         const img = document.createElement('img');
-        img.src = imgSrc;
+        img.src = src;
+        // Click on image in box to remove it
+        img.onclick = () => {
+            img.remove();
+            if(mergeBox.querySelectorAll('img').length === 0) {
+                document.getElementById('placeholder-text').style.display = 'block';
+            }
+        };
         mergeBox.appendChild(img);
-    });
+    }
 
+    // Process Average logic remains the same as your structural engine...
     async function processAverage() {
         const imgsInBox = mergeBox.querySelectorAll('img');
         if (imgsInBox.length < 2) return alert("Add at least 2 subjects.");
 
         avgBtn.disabled = true;
-        status.innerText = "Processing landmarks...";
+        status.innerText = "Analyzing Face Geometry...";
         
-        const W = 600, H = 750; // Output standard
+        const W = 600, H = 750;
         canvas.width = W; canvas.height = H;
 
         const subjects = [];
@@ -177,20 +186,18 @@
         }
 
         if (subjects.length === 0) {
-            status.innerText = "Detection failed for all subjects.";
+            status.innerText = "No faces detected.";
             avgBtn.disabled = false;
             return;
         }
 
-        // Calculate Average Skeleton
         const meanPts = subjects[0].pts.map((_, i) => {
             let x = 0, y = 0;
             subjects.forEach(s => { x += s.pts[i].x; y += s.pts[i].y; });
             return { x: x / subjects.length, y: y / subjects.length };
         });
 
-        // Warp & Blend
-        status.innerText = `Merging ${subjects.length} phenotypes...`;
+        status.innerText = `Synthesizing ${subjects.length} Subjects...`;
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = W; finalCanvas.height = H;
         const fCtx = finalCanvas.getContext('2d');
@@ -210,13 +217,15 @@
 
         ctx.clearRect(0,0,W,H);
         ctx.drawImage(finalCanvas, 0, 0);
-        status.innerText = "Synthesis Complete.";
+        status.innerText = "Synthesis Successful.";
         avgBtn.disabled = false;
         document.getElementById('saveBtn').disabled = false;
+        
+        // Auto-scroll to result on mobile
+        canvas.scrollIntoView({behavior: "smooth"});
     }
 
-    // --- Core Engine Functions (Warping & Normalization) ---
-
+    // --- Core Warp Functions (Helper Logic) ---
     function getNormalization(lm, tw, th) {
         const le = lm.getLeftEye(), re = lm.getRightEye();
         const lC = { x: (le[0].x + le[3].x)/2, y: (le[0].y + le[3].y)/2 };
@@ -269,19 +278,18 @@
     }
 
     function clearBox() {
-        mergeBox.innerHTML = '<div id="placeholder-text" style="color: #444; font-size: 12px; margin: auto;">DRAG PHENOTYPES HERE</div>';
+        mergeBox.innerHTML = '<div id="placeholder-text" style="color: #444; font-size: 12px; margin: auto;">TAP PHENOTYPES TO ADD</div>';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         document.getElementById('saveBtn').disabled = true;
     }
 
     function saveResult() {
         const l = document.createElement('a');
-        l.download = `phenotype_average_${Date.now()}.png`;
+        l.download = `phenotype_mix.png`;
         l.href = canvas.toDataURL();
         l.click();
     }
 
-    // Search logic
     document.getElementById('maleSearch').oninput = e => filterList('maleBox', e.target.value);
     document.getElementById('femaleSearch').oninput = e => filterList('femaleBox', e.target.value);
 
