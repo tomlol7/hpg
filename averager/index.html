@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Face Averager </title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://unpkg.com/delaunator@5.0.0/delaunator.min.js"></script>
+
+    <style>
+        body { background: #050505; color: #fff; font-family: 'Inter', sans-serif; text-align: center; margin: 0; padding: 20px; }
+        .wrapper { max-width: 900px; margin: 0 auto; background: #111; padding: 40px; border-radius: 24px; border: 1px solid #222; box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
+        h1 { color: #ffff00; text-transform: uppercase; letter-spacing: 3px; font-weight: 900; margin-bottom: 5px; }
+        .subtitle { color: #555; font-size: 11px; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .upload-row { display: flex; justify-content: center; gap: 20px; margin-bottom: 25px; }
+        .card { background: #1a1a1a; padding: 20px; border-radius: 16px; border: 1px solid #333; width: 200px; }
+        .card label { display: block; font-size: 10px; color: #ffff00; margin-bottom: 10px; font-weight: bold; }
+        
+        #result-canvas { background: #000; border-radius: 12px; border: 1px solid #333; max-width: 100%; height: auto; margin-top: 20px; }
+
+        button { 
+            background: #ffff00; color: #000; border: none; padding: 18px 45px; 
+            font-weight: 900; border-radius: 12px; cursor: pointer; transition: 0.2s;
+            font-size: 15px; box-shadow: 0 4px 15px rgba(255, 255, 0, 0.2);
+        }
+        button:hover:not(:disabled) { transform: translateY(-2px); background: #fff; }
+        button:disabled { background: #222; color: #444; cursor: not-allowed; }
+        
+        #status { font-family: 'Courier New', monospace; color: #00ff00; font-size: 12px; margin: 15px 0; height: 1.2em; opacity: 0.8; }
+        input[type="file"] { font-size: 11px; width: 100%; color: #888; }
+        img { display: none; }
+    </style>
+</head>
+<body>
+<a href="index.html" style="position: fixed; top: 20px; left: 20px; z-index: 9999; font-size: 20px; text-decoration: none; color: #fff; background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 50px; border: 1px solid #555; backdrop-filter: blur(5px);">&#8592; Home</a>
+
+<div class="wrapper">
+    <h1>Face Averager</h1>
+    <div class="subtitle">v4.0</div>
+
+    <div class="upload-row">
+        <div class="card">
+            <label>SUBJECT ALPHA</label>
+            <input type="file" id="uploadA" accept="image/*">
+        </div>
+        <div class="card">
+            <label>SUBJECT BETA</label>
+            <input type="file" id="uploadB" accept="image/*">
+        </div>
+    </div>
+
+    <button id="mixBtn" onclick="processMix()" disabled>INITIALIZING</button>
+    <div id="status">Loading...</div>
+
+    <canvas id="result-canvas"></canvas>
+    
+    <div style="margin-top:25px;">
+        <button id="saveBtn" style="background:#333; color:#eee; font-size:12px; padding:10px 20px;" onclick="saveResult()" disabled>DOWNLOAD HD PHENOTYPE</button>
+    </div>
+</div>
+
+<img id="imgA">
+<img id="imgB">
+
+<script>
+    const mixBtn = document.getElementById('mixBtn');
+    const status = document.getElementById('status');
+    const canvas = document.getElementById('result-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    // Robust Loader to prevent "faceapi is not defined" errors
+    async function initSystem() {
+        if (typeof faceapi === 'undefined' || typeof Delaunator === 'undefined') {
+            status.innerText = "Connecting to Neural Networks...";
+            setTimeout(initSystem, 300);
+            return;
+        }
+        try {
+            const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            
+            status.innerText = "System Ready. Upload subjects.";
+            mixBtn.innerText = "GENERATE SEAMLESS MORPH";
+            mixBtn.disabled = false;
+        } catch (err) {
+            status.innerText = "Error: Model server unreachable.";
+            console.error(err);
+        }
+    }
+
+    async function processMix() {
+        const iA = document.getElementById('imgA');
+        const iB = document.getElementById('imgB');
+        if (!iA.src || !iB.src) return alert("Select two subjects first.");
+
+        mixBtn.disabled = true;
+        status.innerText = "Mapping geometric coordinates...";
+
+        const detA = await faceapi.detectSingleFace(iA).withFaceLandmarks();
+        const detB = await faceapi.detectSingleFace(iB).withFaceLandmarks();
+
+        if (!detA || !detB) {
+            status.innerText = "Error: One or more faces not detected.";
+            mixBtn.disabled = false;
+            return;
+        }
+
+        const W = Math.max(iA.naturalWidth, iB.naturalWidth);
+        const H = Math.max(iA.naturalHeight, iB.naturalHeight);
+        canvas.width = W;
+        canvas.height = H;
+
+        status.innerText = "Normalizing structures...";
+
+        const normA = getNormalization(detA.landmarks, W, H);
+        const normB = getNormalization(detB.landmarks, W, H);
+
+        const canvasA = applyNormalization(iA, normA);
+        const canvasB = applyNormalization(iB, normB);
+
+        const detAN = await faceapi.detectSingleFace(canvasA).withFaceLandmarks();
+        const detBN = await faceapi.detectSingleFace(canvasB).withFaceLandmarks();
+
+        const ptsA = addMetaPoints(detAN.landmarks.positions, W, H);
+        const ptsB = addMetaPoints(detBN.landmarks.positions, W, H);
+        const midPoints = ptsA.map((p, i) => ({ x: (p.x + ptsB[i].x)/2, y: (p.y + ptsB[i].y)/2 }));
+
+        const warpA = document.createElement('canvas'); warpA.width = W; warpA.height = H;
+        const warpB = document.createElement('canvas'); warpB.width = W; warpB.height = H;
+        const ctxA = warpA.getContext('2d');
+        const ctxB = warpB.getContext('2d');
+
+        const triangles = new Delaunator(midPoints.map(p => [p.x, p.y]).flat()).triangles;
+
+        status.innerText = "Warping seamless textures...";
+        for (let i = 0; i < triangles.length; i += 3) {
+            const idx = [triangles[i], triangles[i+1], triangles[i+2]];
+            drawSeamlessTriangle(ctxA, canvasA, idx.map(j => ptsA[j]), idx.map(j => midPoints[j]));
+            drawSeamlessTriangle(ctxB, canvasB, idx.map(j => ptsB[j]), idx.map(j => midPoints[j]));
+        }
+
+        ctx.clearRect(0,0,W,H);
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(warpA, 0, 0);
+        ctx.globalAlpha = 0.5; // Perfect 50/50 blend
+        ctx.drawImage(warpB, 0, 0);
+
+        status.innerText = "Morph Generated Successfully.";
+        mixBtn.disabled = false;
+        document.getElementById('saveBtn').disabled = false;
+    }
+
+    // THE SEAM-KILLER FUNCTION
+    function drawSeamlessTriangle(xc, img, src, dst) {
+        const m = getAffine(src, dst);
+        if (!m) return;
+
+        // Calculate Centroid for expansion
+        const cx = (dst[0].x + dst[1].x + dst[2].x) / 3;
+        const cy = (dst[0].y + dst[1].y + dst[2].y) / 3;
+
+        xc.save();
+        xc.beginPath();
+        
+        // Anti-Seam Hack: Move each vertex 0.5px away from center to overlap gaps
+        dst.forEach((p, i) => {
+            const dx = p.x - cx, dy = p.y - cy;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const ox = p.x + (dx/dist) * 0.5;
+            const oy = p.y + (dy/dist) * 0.5;
+            if (i === 0) xc.moveTo(ox, oy); else xc.lineTo(ox, oy);
+        });
+        
+        xc.closePath();
+        xc.clip();
+        xc.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+        xc.drawImage(img, 0, 0);
+        xc.restore();
+    }
+
+    function getNormalization(lm, tw, th) {
+        const le = lm.getLeftEye(), re = lm.getRightEye();
+        const lC = { x: (le[0].x + le[3].x)/2, y: (le[0].y + le[3].y)/2 };
+        const rC = { x: (re[0].x + re[3].x)/2, y: (re[0].y + re[3].y)/2 };
+        const dx = rC.x - lC.x, dy = rC.y - lC.y;
+        return { angle: Math.atan2(dy, dx), scale: (tw * 0.28) / Math.sqrt(dx*dx + dy*dy), center: lC, tw, th };
+    }
+
+    function applyNormalization(img, n) {
+        const c = document.createElement('canvas'); c.width = n.tw; c.height = n.th;
+        const x = c.getContext('2d');
+        x.translate(n.tw * 0.36, n.th * 0.42); 
+        x.rotate(-n.angle);
+        x.scale(n.scale, n.scale);
+        x.drawImage(img, -n.center.x, -n.center.y);
+        return c;
+    }
+
+    function addMetaPoints(pts, w, h) {
+        let p = pts.map(pt => ({ x: pt.x, y: pt.y }));
+        p.push({x:0,y:0}, {x:w,y:0}, {x:0,y:h}, {x:w,y:h}, {x:w/2,y:0}, {x:w/2,y:h}, {x:0,y:h/2}, {x:w,y:h/2});
+        return p;
+    }
+
+    function getAffine(s, d) {
+        const x0=s[0].x, y0=s[0].y, x1=s[1].x, y1=s[1].y, x2=s[2].x, y2=s[2].y;
+        const u0=d[0].x, v0=d[0].y, u1=d[1].x, v1=d[1].y, u2=d[2].x, v2=d[2].y;
+        const det = (x1-x0)*(y2-y0) - (x2-x0)*(y1-y0);
+        if (Math.abs(det) < 0.1) return null;
+        const a = ((u1-u0)*(y2-y0) - (u2-u0)*(y1-y0)) / det;
+        const b = ((v1-v0)*(y2-y0) - (v2-v0)*(y1-y0)) / det;
+        const c = ((x1-x0)*(u2-u0) - (x2-x0)*(u1-u0)) / det;
+        const _d = ((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0)) / det;
+        const e = u0 - a*x0 - c*y0;
+        const f = v0 - b*x0 - _d*y0;
+        return [a, b, c, _d, e, f];
+    }
+
+    function saveResult() {
+        const l = document.createElement('a');
+        l.download = 'perfect_phenotype.png';
+        l.href = canvas.toDataURL('image/png', 1.0);
+        l.click();
+    }
+
+    document.getElementById('uploadA').onchange = e => {
+        const fr = new FileReader(); fr.onload = ev => document.getElementById('imgA').src = ev.target.result; fr.readAsDataURL(e.target.files[0]);
+    };
+    document.getElementById('uploadB').onchange = e => {
+        const fr = new FileReader(); fr.onload = ev => document.getElementById('imgB').src = ev.target.result; fr.readAsDataURL(e.target.files[0]);
+    };
+
+    window.onload = initSystem;
+</script>
+</body>
+</html>
