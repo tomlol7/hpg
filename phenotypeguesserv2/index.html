@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phenotype Predictor & Mixer Pro</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://unpkg.com/delaunator@5.0.0/delaunator.min.js"></script>
+
+    <style>
+        :root { --bg: #0a0a0a; --card: #151515; --text: #eee; --accent: #ffff00; }
+        body { font-family: 'Inter', Courier, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        
+        header { width: 100%; max-width: 900px; text-align: center; margin-bottom: 20px; }
+        h1 { color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-size: 20px; }
+
+        .app-container { display: flex; flex-wrap: wrap; gap: 20px; width: 100%; max-width: 900px; justify-content: center; }
+        
+        .panel { background: var(--card); padding: 20px; border-radius: 10px; flex: 1; min-width: 300px; display: flex; flex-direction: column; align-items: center; border: 1px solid #333; }
+        .panel h2 { font-size: 14px; color: #888; margin-top: 0; text-transform: uppercase; }
+        
+        .image-box { width: 300px; height: 400px; background: #000; border: 1px solid #444; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; position: relative; }
+        .image-box img, .image-box canvas { width: 100%; height: 100%; object-fit: cover; }
+        
+        .controls { margin-top: 15px; width: 100%; text-align: center; }
+        input[type="file"] { display: none; }
+        .btn { background: var(--accent); color: #000; padding: 10px 20px; border: none; border-radius: 5px; font-weight: 800; cursor: pointer; text-transform: uppercase; display: inline-block; font-size: 12px; }
+        .btn:hover { opacity: 0.8; }
+        .btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        .terminal { width: 100%; max-width: 860px; background: #050505; padding: 20px; border-radius: 10px; margin-top: 20px; border: 1px solid #333; font-size: 13px; line-height: 1.5; color: #00ff00; height: 200px; overflow-y: auto; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Phenotype Predictor AI</h1>
+</header>
+
+<div class="app-container">
+    <div class="panel">
+        <h2>Target Face</h2>
+        <div class="image-box">
+            <img id="inputImage" src="" style="display:none;" alt="Uploaded Face">
+            <span id="placeholderText" style="color: #444; font-size: 12px;">NO IMAGE SELECTED</span>
+        </div>
+        <div class="controls">
+            <label for="uploadBtn" class="btn">Upload Image</label>
+            <input type="file" id="uploadBtn" accept="image/*">
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>AI Structural Mix</h2>
+        <div class="image-box">
+            <canvas id="resultCanvas" width="600" height="750"></canvas>
+        </div>
+        <div class="controls">
+            <button id="analyzeBtn" class="btn" disabled>Booting AI...</button>
+        </div>
+    </div>
+</div>
+
+<div class="terminal" id="terminal">
+    === SYSTEM STATUS ===<br>
+    Fetching neural networks and dataset...<br>
+</div>
+
+<script>
+    let phenotypeList = [];
+    
+    const inputImage = document.getElementById('inputImage');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const resultCanvas = document.getElementById('resultCanvas');
+    const ctx = resultCanvas.getContext('2d');
+    const terminal = document.getElementById('terminal');
+
+    // --- MATH HELPERS ---
+    const dot = (a, b) => a.reduce((acc, n, i) => acc + n * b[i], 0);
+    const cos = (a, b) => dot(a, b) / Math.sqrt(dot(a, a) * dot(b, b));
+
+    const hexToF32Arr = (str) => new Float32Array(
+        new Uint8Array([...atob(str)].map((c) => c.charCodeAt(0))).buffer
+    );
+    const hexToF32 = (arr) => [arr[0], hexToF32Arr(arr[1]), hexToF32Arr(arr[2])];
+
+    // --- INITIALIZATION ---
+    async function initSystem() {
+        try {
+            const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+            await faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL);
+            
+            logTerminal("Neural networks loaded.");
+            logTerminal("Downloading phenotype descriptors (list.json)...");
+
+            const response = await fetch('list.json');
+            const list = await response.json();
+
+            // Decode base64 float arrays based on your logic
+            for (let i = 0; i < list.length; i++) {
+                const len = list[i].length;
+                if (len > 1) list[i][0] = hexToF32(list[i][0]);
+                for (let j = 0; j < list[i][len - 1].length; j++) {
+                    list[i][len - 1][j] = hexToF32(list[i][len - 1][j]);
+                }
+            }
+            phenotypeList = list;
+
+            logTerminal("Dataset ready. Awaiting user input.");
+            analyzeBtn.innerText = "ANALYZE & MIX";
+        } catch (err) {
+            logTerminal(`ERROR: Initialization failed. ${err.message}`, true);
+        }
+    }
+
+    // --- FILE UPLOAD ---
+    uploadBtn.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                inputImage.src = event.target.result;
+                inputImage.style.display = 'block';
+                document.getElementById('placeholderText').style.display = 'none';
+                analyzeBtn.disabled = false;
+                logTerminal(`Image loaded: ${file.name}`);
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // --- MAIN ANALYSIS ROUTINE ---
+    analyzeBtn.addEventListener('click', async () => {
+        if (!inputImage.src) return;
+        
+        analyzeBtn.disabled = true;
+        logTerminal("Extracting facial descriptors & predicting gender...");
+
+        const detection = await faceapi.detectSingleFace(inputImage)
+            .withFaceLandmarks()
+            .withAgeAndGender()
+            .withFaceDescriptor();
+
+        if (!detection) {
+            logTerminal("No face detected! Please upload a clearer image.", true);
+            analyzeBtn.disabled = false;
+            return;
+        }
+
+        let genderShort = (detection.genderProbability >= 0.5 && detection.gender === 'female') ? 'f' : 'm';
+        let genderIdx = genderShort === 'm' ? 1 : 2;
+        logTerminal(`Detected: ${detection.gender} (${Math.round(detection.genderProbability*100)}% confidence)`);
+
+        // Run Cosine Similarity against list
+        let list2 = structuredClone(phenotypeList);
+        for (let j = 0; j < list2.length; j++) {
+            const len2 = list2[j].length;
+            if (len2 > 1) {
+                list2[j][0][genderIdx] = cos(list2[j][0][genderIdx], detection.descriptor) * 100;
+            }
+            for (let k = 0; k < list2[j][len2 - 1].length; k++) {
+                list2[j][len2 - 1][k][genderIdx] = cos(list2[j][len2 - 1][k][genderIdx], detection.descriptor) * 100;
+            }
+            list2[j][len2 - 1].sort((a, b) => b[genderIdx] - a[genderIdx]);
+        }
+
+        function grpScore(a) {
+            if (a.length > 1) return Math.max(a[0][genderIdx], a[1][0][genderIdx]);
+            return a[0][0][genderIdx];
+        }
+
+        list2.sort((a, b) => grpScore(b) - grpScore(a));
+        
+        // Extract flat top predictions for mixing
+        let topPredictions = [];
+        for (const a of list2) {
+            const aLen = a.length;
+            if (aLen > 1) topPredictions.push({ name: a[0][0], score: a[0][genderIdx] });
+            for (const arr of a[aLen - 1]) {
+                topPredictions.push({ name: arr[0], score: arr[genderIdx] });
+            }
+        }
+        
+        // Sort flat array and take top 5 for Terminal, top 3 for Mixing
+        topPredictions.sort((a,b) => b.score - a.score);
+        
+        logTerminal("<br>=== PHENOTYPE PREDICTION ===", false, "#fff");
+        for(let i=0; i<5; i++) {
+            let p = topPredictions[i];
+            logTerminal(`${p.score.toFixed(2)}% | ${p.name}`);
+        }
+
+        logTerminal("<br>Initiating structural morph with top 3 components...");
+        await generateStructuralMix(topPredictions.slice(0, 3), genderShort);
+        
+        analyzeBtn.disabled = false;
+    });
+
+    // --- STRUCTURAL MORPHING ENGINE ---
+    async function generateStructuralMix(predictions, genderShort) {
+        const W = resultCanvas.width, H = resultCanvas.height;
+        ctx.clearRect(0, 0, W, H);
+        const subjects = [];
+        
+        // Normalize the scores so they act as proper weights (summing to 1)
+        const totalScore = predictions.reduce((sum, p) => sum + p.score, 0);
+
+        for (let p of predictions) {
+            const filename = `${p.name.toLowerCase()}${genderShort}.jpg`;
+            const tempImg = new Image();
+            tempImg.crossOrigin = "Anonymous";
+            tempImg.src = `/faces_lowres/${filename}`;
+            
+            try {
+                await new Promise((res, rej) => { tempImg.onload = res; tempImg.onerror = rej; });
+                const det = await faceapi.detectSingleFace(tempImg).withFaceLandmarks();
+                if (det) {
+                    const weight = p.score / totalScore;
+                    subjects.push({ canvas: tempImg, pts: addMetaPoints(det.landmarks.positions, W, H), weight: weight });
+                }
+            } catch (e) {
+                logTerminal(`Warning: Skipped ${filename} (Image not found)`, true);
+            }
+        }
+
+        if (subjects.length === 0) return logTerminal("Morphing failed: No component faces could be loaded.", true);
+
+        // 1. Calculate Weighted Mean Points
+        const meanPts = subjects[0].pts.map((_, i) => {
+            let x = 0, y = 0;
+            subjects.forEach(s => { x += s.pts[i].x * s.weight; y += s.pts[i].y * s.weight; });
+            return { x, y };
+        });
+
+        // 2. Triangulate based on Mean Points
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = W; finalCanvas.height = H;
+        const fCtx = finalCanvas.getContext('2d');
+        const triangles = new Delaunator(meanPts.map(p => [p.x, p.y]).flat()).triangles;
+
+        // 3. Warp and Blend
+        subjects.forEach((s) => {
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = W; tCanvas.height = H;
+            const tCtx = tCanvas.getContext('2d');
+            
+            for (let i = 0; i < triangles.length; i += 3) {
+                const tri = [triangles[i], triangles[i+1], triangles[i+2]];
+                drawSeamlessTriangle(tCtx, s.canvas, tri.map(j => s.pts[j]), tri.map(j => meanPts[j]));
+            }
+            
+            fCtx.globalAlpha = s.weight; // Blend based on similarity percentage
+            fCtx.drawImage(tCanvas, 0, 0);
+        });
+
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(finalCanvas, 0, 0);
+        logTerminal("Structural mix rendered successfully.");
+    }
+
+    // --- MORPHING HELPERS ---
+    function addMetaPoints(pts, w, h) {
+        let p = pts.map(pt => ({ x: pt.x, y: pt.y }));
+        p.push({x:0,y:0}, {x:w,y:0}, {x:0,y:h}, {x:w,y:h}, {x:w/2,y:0}, {x:w/2,y:h}, {x:0,y:h/2}, {x:w,y:h/2});
+        return p;
+    }
+
+    function drawSeamlessTriangle(xc, img, src, dst) {
+        const m = getAffine(src, dst); if (!m) return;
+        const cx = (dst[0].x + dst[1].x + dst[2].x) / 3, cy = (dst[0].y + dst[1].y + dst[2].y) / 3;
+        xc.save(); xc.beginPath();
+        dst.forEach((p, i) => {
+            const dx = p.x - cx, dy = p.y - cy, d = Math.sqrt(dx*dx + dy*dy);
+            const ox = p.x + (dx/d) * 0.5, oy = p.y + (dy/d) * 0.5;
+            if (i === 0) xc.moveTo(ox, oy); else xc.lineTo(ox, oy);
+        });
+        xc.closePath(); xc.clip();
+        xc.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+        xc.drawImage(img, 0, 0); xc.restore();
+    }
+
+    function getAffine(s, d) {
+        const x0=s[0].x, y0=s[0].y, x1=s[1].x, y1=s[1].y, x2=s[2].x, y2=s[2].y;
+        const u0=d[0].x, v0=d[0].y, u1=d[1].x, v1=d[1].y, u2=d[2].x, v2=d[2].y;
+        const det = (x1-x0)*(y2-y0) - (x2-x0)*(y1-y0);
+        if (Math.abs(det) < 0.1) return null;
+        return [
+            ((u1-u0)*(y2-y0) - (u2-u0)*(y1-y0)) / det,
+            ((v1-v0)*(y2-y0) - (v2-v0)*(y1-y0)) / det,
+            ((x1-x0)*(u2-u0) - (x2-x0)*(u1-u0)) / det,
+            ((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0)) / det,
+            u0 - (((u1-u0)*(y2-y0) - (u2-u0)*(y1-y0)) / det)*x0 - (((x1-x0)*(u2-u0) - (x2-x0)*(u1-u0)) / det)*y0,
+            v0 - (((v1-v0)*(y2-y0) - (v2-v0)*(y1-y0)) / det)*x0 - (((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0)) / det)*y0
+        ];
+    }
+
+    function logTerminal(text, isError = false, colorOverride = null) {
+        const color = colorOverride || (isError ? '#ff4444' : '#00ff00');
+        terminal.innerHTML += `<span style="color:${color};">> ${text}</span><br>`;
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    window.onload = initSystem;
+</script>
+
+</body>
+</html>
