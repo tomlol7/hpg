@@ -64,7 +64,7 @@
 
 <div class="terminal" id="terminal">
     === SYSTEM STATUS ===<br>
-    Fetching neural networks and dataset...<br>
+    Fetching neural networks...<br>
 </div>
 
 <script>
@@ -77,70 +77,66 @@
     const ctx = resultCanvas.getContext('2d');
     const terminal = document.getElementById('terminal');
 
-    // --- MATH HELPERS ---
-  // --- MATH HELPERS ---
+    // --- ROBUST MATH HELPERS ---
     const dot = (a, b) => a.reduce((acc, n, i) => acc + n * b[i], 0);
-    const cos = (a, b) => dot(a, b) / Math.sqrt(dot(a, a) * dot(b, b));
+    const cosSimilarity = (a, b) => {
+        const d = dot(a, b) / (Math.sqrt(dot(a, a)) * Math.sqrt(dot(b, b)));
+        return d;
+    };
 
-    // Robust Base64 to Float32Array decoder
     const hexToF32Arr = (str) => {
-        // 1. If the string is missing entirely, return an empty array so it doesn't crash
-        if (!str || typeof str !== 'string') return new Float32Array(128); 
-        
-        // 2. Strip any spaces, tabs, or newlines that might have snuck into the JSON string
-        let cleanStr = str.replace(/\s+/g, '');
-        
-        // 3. Fix missing Base64 padding (atob requires string length to be a multiple of 4)
-        while (cleanStr.length % 4 !== 0) {
-            cleanStr += '=';
-        }
-        
+        if (!str || typeof str !== 'string') return new Float32Array(128);
+        let clean = str.replace(/[^A-Za-z0-9+/=]/g, ""); // Remove any junk
+        while (clean.length % 4 !== 0) clean += "="; // Fix padding
         try {
-            return new Float32Array(
-                new Uint8Array([...atob(cleanStr)].map((c) => c.charCodeAt(0))).buffer
-            );
+            const binary = atob(clean);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return new Float32Array(bytes.buffer);
         } catch (e) {
-            console.error("Corrupted Base64 segment found:", cleanStr.substring(0, 30) + "...");
-            throw new Error(`Data corruption detected in list.json: ${e.message}`);
+            console.error("Base64 Decode Error", e);
+            return new Float32Array(128);
         }
     };
 
-    // Safely map the array, checking if male/female data actually exists
-    const hexToF32 = (arr) => [
-        arr[0], // Phenotype Name
-        arr[1] ? hexToF32Arr(arr[1]) : new Float32Array(128), // Male Base64
-        arr[2] ? hexToF32Arr(arr[2]) : new Float32Array(128)  // Female Base64
+    const processEntry = (arr) => [
+        arr[0], // Name
+        arr[1] ? hexToF32Arr(arr[1]) : new Float32Array(128), // Male Desc
+        arr[2] ? hexToF32Arr(arr[2]) : new Float32Array(128)  // Female Desc
     ];
 
     // --- INITIALIZATION ---
     async function initSystem() {
         try {
             const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
-            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-            await faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL);
+            await Promise.all([
+                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL)
+            ]);
             
             logTerminal("Neural networks loaded.");
-            logTerminal("Downloading phenotype descriptors (list.json)...");
+            logTerminal("Downloading phenotype dataset...");
 
             const response = await fetch('list.json');
-            const list = await response.json();
+            const rawList = await response.json();
 
-            // Decode base64 float arrays based on your logic
-            for (let i = 0; i < list.length; i++) {
-                const len = list[i].length;
-                if (len > 1) list[i][0] = hexToF32(list[i][0]);
-                for (let j = 0; j < list[i][len - 1].length; j++) {
-                    list[i][len - 1][j] = hexToF32(list[i][len - 1][j]);
-                }
-            }
-            phenotypeList = list;
+            // Transform descriptors once during boot
+            phenotypeList = rawList.map(group => {
+                let processedGroup = [];
+                // Group[0] is the main phenotype
+                processedGroup.push(processEntry(group[0]));
+                // The last item in group is the sub-phenotype array
+                let subs = group[group.length - 1].map(s => processEntry(s));
+                processedGroup.push(subs);
+                return processedGroup;
+            });
 
             logTerminal("Dataset ready. Awaiting user input.");
             analyzeBtn.innerText = "ANALYZE & MIX";
         } catch (err) {
-            logTerminal(`ERROR: Initialization failed. ${err.message}`, true);
+            logTerminal(`CRITICAL ERROR: ${err.message}`, true);
         }
     }
 
@@ -160,151 +156,129 @@
         }
     });
 
-    // --- MAIN ANALYSIS ROUTINE ---
+    // --- MAIN ANALYSIS ---
     analyzeBtn.addEventListener('click', async () => {
         if (!inputImage.src) return;
         
-        analyzeBtn.disabled = true;
-        logTerminal("Extracting facial descriptors & predicting gender...");
+        try {
+            analyzeBtn.disabled = true;
+            logTerminal("Extracting descriptors...");
 
-        const detection = await faceapi.detectSingleFace(inputImage)
-            .withFaceLandmarks()
-            .withAgeAndGender()
-            .withFaceDescriptor();
+            const detection = await faceapi.detectSingleFace(inputImage)
+                .withFaceLandmarks().withAgeAndGender().withFaceDescriptor();
 
-        if (!detection) {
-            logTerminal("No face detected! Please upload a clearer image.", true);
+            if (!detection) {
+                logTerminal("Face not detected. Check lighting.", true);
+                analyzeBtn.disabled = false;
+                return;
+            }
+
+            const genderShort = (detection.gender === 'female') ? 'f' : 'm';
+            const gIdx = genderShort === 'm' ? 1 : 2;
+            logTerminal(`Target: ${detection.gender} (${Math.round(detection.genderProbability*100)}%)`);
+
+            // Prediction logic
+            let results = [];
+            phenotypeList.forEach(group => {
+                // Check Main
+                let mainScore = cosSimilarity(group[0][gIdx], detection.descriptor) * 100;
+                results.push({ name: group[0][0], score: mainScore });
+                
+                // Check Subs
+                group[1].forEach(sub => {
+                    let subScore = cosSimilarity(sub[gIdx], detection.descriptor) * 100;
+                    results.push({ name: sub[0], score: subScore });
+                });
+            });
+
+            results.sort((a, b) => b.score - a.score);
+
+            logTerminal("<br>=== TOP PREDICTIONS ===", false, "#fff");
+            results.slice(0, 5).forEach(r => {
+                logTerminal(`${r.score.toFixed(2)}% | ${r.name}`);
+            });
+
+            logTerminal("<br>Generating structural morph...");
+            await generateStructuralMix(results.slice(0, 3), genderShort);
+            
             analyzeBtn.disabled = false;
-            return;
+        } catch (e) {
+            logTerminal(`Runtime Error: ${e.message}`, true);
+            analyzeBtn.disabled = false;
         }
-
-        let genderShort = (detection.genderProbability >= 0.5 && detection.gender === 'female') ? 'f' : 'm';
-        let genderIdx = genderShort === 'm' ? 1 : 2;
-        logTerminal(`Detected: ${detection.gender} (${Math.round(detection.genderProbability*100)}% confidence)`);
-
-        // Run Cosine Similarity against list
-        let list2 = structuredClone(phenotypeList);
-        for (let j = 0; j < list2.length; j++) {
-            const len2 = list2[j].length;
-            if (len2 > 1) {
-                list2[j][0][genderIdx] = cos(list2[j][0][genderIdx], detection.descriptor) * 100;
-            }
-            for (let k = 0; k < list2[j][len2 - 1].length; k++) {
-                list2[j][len2 - 1][k][genderIdx] = cos(list2[j][len2 - 1][k][genderIdx], detection.descriptor) * 100;
-            }
-            list2[j][len2 - 1].sort((a, b) => b[genderIdx] - a[genderIdx]);
-        }
-
-        function grpScore(a) {
-            if (a.length > 1) return Math.max(a[0][genderIdx], a[1][0][genderIdx]);
-            return a[0][0][genderIdx];
-        }
-
-        list2.sort((a, b) => grpScore(b) - grpScore(a));
-        
-        // Extract flat top predictions for mixing
-        let topPredictions = [];
-        for (const a of list2) {
-            const aLen = a.length;
-            if (aLen > 1) topPredictions.push({ name: a[0][0], score: a[0][genderIdx] });
-            for (const arr of a[aLen - 1]) {
-                topPredictions.push({ name: arr[0], score: arr[genderIdx] });
-            }
-        }
-        
-        // Sort flat array and take top 5 for Terminal, top 3 for Mixing
-        topPredictions.sort((a,b) => b.score - a.score);
-        
-        logTerminal("<br>=== PHENOTYPE PREDICTION ===", false, "#fff");
-        for(let i=0; i<5; i++) {
-            let p = topPredictions[i];
-            logTerminal(`${p.score.toFixed(2)}% | ${p.name}`);
-        }
-
-        logTerminal("<br>Initiating structural morph with top 3 components...");
-        await generateStructuralMix(topPredictions.slice(0, 3), genderShort);
-        
-        analyzeBtn.disabled = false;
     });
 
-    // --- STRUCTURAL MORPHING ENGINE ---
-    async function generateStructuralMix(predictions, genderShort) {
+    // --- MORPHING ENGINE ---
+    async function generateStructuralMix(predictions, gender) {
         const W = resultCanvas.width, H = resultCanvas.height;
         ctx.clearRect(0, 0, W, H);
-        const subjects = [];
         
-        // Normalize the scores so they act as proper weights (summing to 1)
+        const subjects = [];
         const totalScore = predictions.reduce((sum, p) => sum + p.score, 0);
 
         for (let p of predictions) {
-            const filename = `${p.name.toLowerCase()}${genderShort}.jpg`;
-            const tempImg = new Image();
-            tempImg.crossOrigin = "Anonymous";
-            tempImg.src = `../faces_lowres/${filename}`;
+            const filename = `${p.name.toLowerCase().replace(/\s+/g, '')}${gender}.jpg`;
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = `../faces_lowres/${filename}`;
             
             try {
-                await new Promise((res, rej) => { tempImg.onload = res; tempImg.onerror = rej; });
-                const det = await faceapi.detectSingleFace(tempImg).withFaceLandmarks();
+                await new Promise((res, rej) => { 
+                    img.onload = res; 
+                    img.onerror = () => rej(`Missing: ${filename}`); 
+                });
+                const det = await faceapi.detectSingleFace(img).withFaceLandmarks();
                 if (det) {
-                    const weight = p.score / totalScore;
-                    subjects.push({ canvas: tempImg, pts: addMetaPoints(det.landmarks.positions, W, H), weight: weight });
+                    subjects.push({ 
+                        canvas: img, 
+                        pts: addMetaPoints(det.landmarks.positions, W, H), 
+                        weight: p.score / totalScore 
+                    });
                 }
             } catch (e) {
-                logTerminal(`Warning: Skipped ${filename} (Image not found)`, true);
+                logTerminal(`Skipped: ${p.name} (Image not found)`, true);
             }
         }
 
-        if (subjects.length === 0) return logTerminal("Morphing failed: No component faces could be loaded.", true);
+        if (subjects.length === 0) return logTerminal("Morphing failed: No images loaded.", true);
 
-        // 1. Calculate Weighted Mean Points
         const meanPts = subjects[0].pts.map((_, i) => {
             let x = 0, y = 0;
             subjects.forEach(s => { x += s.pts[i].x * s.weight; y += s.pts[i].y * s.weight; });
             return { x, y };
         });
 
-        // 2. Triangulate based on Mean Points
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = W; finalCanvas.height = H;
         const fCtx = finalCanvas.getContext('2d');
         const triangles = new Delaunator(meanPts.map(p => [p.x, p.y]).flat()).triangles;
 
-        // 3. Warp and Blend
         subjects.forEach((s) => {
             const tCanvas = document.createElement('canvas');
             tCanvas.width = W; tCanvas.height = H;
             const tCtx = tCanvas.getContext('2d');
-            
             for (let i = 0; i < triangles.length; i += 3) {
                 const tri = [triangles[i], triangles[i+1], triangles[i+2]];
-                drawSeamlessTriangle(tCtx, s.canvas, tri.map(j => s.pts[j]), tri.map(j => meanPts[j]));
+                drawTriangle(tCtx, s.canvas, tri.map(j => s.pts[j]), tri.map(j => meanPts[j]));
             }
-            
-            fCtx.globalAlpha = s.weight; // Blend based on similarity percentage
+            fCtx.globalAlpha = s.weight;
             fCtx.drawImage(tCanvas, 0, 0);
         });
 
-        ctx.globalAlpha = 1.0;
         ctx.drawImage(finalCanvas, 0, 0);
-        logTerminal("Structural mix rendered successfully.");
+        logTerminal("Structural mix complete.");
     }
 
-    // --- MORPHING HELPERS ---
     function addMetaPoints(pts, w, h) {
         let p = pts.map(pt => ({ x: pt.x, y: pt.y }));
-        p.push({x:0,y:0}, {x:w,y:0}, {x:0,y:h}, {x:w,y:h}, {x:w/2,y:0}, {x:w/2,y:h}, {x:0,y:h/2}, {x:w,y:h/2});
+        p.push({x:0,y:0},{x:w,y:0},{x:0,y:h},{x:w,y:h},{x:w/2,y:0},{x:w/2,y:h},{x:0,y:h/2},{x:w,y:h/2});
         return p;
     }
 
-    function drawSeamlessTriangle(xc, img, src, dst) {
+    function drawTriangle(xc, img, src, dst) {
         const m = getAffine(src, dst); if (!m) return;
-        const cx = (dst[0].x + dst[1].x + dst[2].x) / 3, cy = (dst[0].y + dst[1].y + dst[2].y) / 3;
         xc.save(); xc.beginPath();
-        dst.forEach((p, i) => {
-            const dx = p.x - cx, dy = p.y - cy, d = Math.sqrt(dx*dx + dy*dy);
-            const ox = p.x + (dx/d) * 0.5, oy = p.y + (dy/d) * 0.5;
-            if (i === 0) xc.moveTo(ox, oy); else xc.lineTo(ox, oy);
-        });
+        xc.moveTo(dst[0].x, dst[0].y); xc.lineTo(dst[1].x, dst[1].y); xc.lineTo(dst[2].x, dst[2].y);
         xc.closePath(); xc.clip();
         xc.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
         xc.drawImage(img, 0, 0); xc.restore();
@@ -316,12 +290,10 @@
         const det = (x1-x0)*(y2-y0) - (x2-x0)*(y1-y0);
         if (Math.abs(det) < 0.1) return null;
         return [
-            ((u1-u0)*(y2-y0) - (u2-u0)*(y1-y0)) / det,
-            ((v1-v0)*(y2-y0) - (v2-v0)*(y1-y0)) / det,
-            ((x1-x0)*(u2-u0) - (x2-x0)*(u1-u0)) / det,
-            ((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0)) / det,
-            u0 - (((u1-u0)*(y2-y0) - (u2-u0)*(y1-y0)) / det)*x0 - (((x1-x0)*(u2-u0) - (x2-x0)*(u1-u0)) / det)*y0,
-            v0 - (((v1-v0)*(y2-y0) - (v2-v0)*(y1-y0)) / det)*x0 - (((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0)) / det)*y0
+            ((u1-u0)*(y2-y0)-(u2-u0)*(y1-y0))/det, ((v1-v0)*(y2-y0)-(v2-v0)*(y1-y0))/det,
+            ((x1-x0)*(u2-u0)-(x2-x0)*(u1-u0))/det, ((x1-x0)*(v2-v0)-(x2-x0)*(v1-v0))/det,
+            u0-(((u1-u0)*(y2-y0)-(u2-u0)*(y1-y0))/det)*x0-(((x1-x0)*(u2-u0)-(x2-x0)*(u1-u0))/det)*y0,
+            v0-(((v1-v0)*(y2-y0)-(v2-v0)*(y1-y0))/det)*x0-(((x1-x0)*(v2-v0)-(x2-x0)*(v1-v0))/det)*y0
         ];
     }
 
