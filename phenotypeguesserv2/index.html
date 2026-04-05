@@ -78,13 +78,39 @@
     const terminal = document.getElementById('terminal');
 
     // --- MATH HELPERS ---
+  // --- MATH HELPERS ---
     const dot = (a, b) => a.reduce((acc, n, i) => acc + n * b[i], 0);
     const cos = (a, b) => dot(a, b) / Math.sqrt(dot(a, a) * dot(b, b));
 
-    const hexToF32Arr = (str) => new Float32Array(
-        new Uint8Array([...atob(str)].map((c) => c.charCodeAt(0))).buffer
-    );
-    const hexToF32 = (arr) => [arr[0], hexToF32Arr(arr[1]), hexToF32Arr(arr[2])];
+    // Robust Base64 to Float32Array decoder
+    const hexToF32Arr = (str) => {
+        // 1. If the string is missing entirely, return an empty array so it doesn't crash
+        if (!str || typeof str !== 'string') return new Float32Array(128); 
+        
+        // 2. Strip any spaces, tabs, or newlines that might have snuck into the JSON string
+        let cleanStr = str.replace(/\s+/g, '');
+        
+        // 3. Fix missing Base64 padding (atob requires string length to be a multiple of 4)
+        while (cleanStr.length % 4 !== 0) {
+            cleanStr += '=';
+        }
+        
+        try {
+            return new Float32Array(
+                new Uint8Array([...atob(cleanStr)].map((c) => c.charCodeAt(0))).buffer
+            );
+        } catch (e) {
+            console.error("Corrupted Base64 segment found:", cleanStr.substring(0, 30) + "...");
+            throw new Error(`Data corruption detected in list.json: ${e.message}`);
+        }
+    };
+
+    // Safely map the array, checking if male/female data actually exists
+    const hexToF32 = (arr) => [
+        arr[0], // Phenotype Name
+        arr[1] ? hexToF32Arr(arr[1]) : new Float32Array(128), // Male Base64
+        arr[2] ? hexToF32Arr(arr[2]) : new Float32Array(128)  // Female Base64
+    ];
 
     // --- INITIALIZATION ---
     async function initSystem() {
