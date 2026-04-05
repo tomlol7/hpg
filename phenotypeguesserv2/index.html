@@ -240,7 +240,7 @@
             const filename = `${p.name.toLowerCase()}${genderShort}.jpg`;
             const tempImg = new Image();
             tempImg.crossOrigin = "Anonymous";
-            tempImg.src = `/faces_lowres/${filename}`;
+            tempImg.src = `../faces_lowres/${filename}`;
             
             try {
                 await new Promise((res, rej) => { tempImg.onload = res; tempImg.onerror = rej; });
