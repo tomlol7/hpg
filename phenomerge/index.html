@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Phenotype Mixer Pro | Mobile v5.5</title>
+    <title>Phenotype Mixer Pro | Mobile v5.5 (Percentage Mod)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="https://unpkg.com/delaunator@5.0.0/delaunator.min.js"></script>
@@ -26,7 +26,36 @@
             background: #111; border: 2px dashed #333; border-radius: 12px; 
             display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; margin-bottom: 15px;
         }
-        .merge-box img { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #444; }
+
+        /* --- PERCENTAGE MOD CSS --- */
+        .merge-item {
+            position: relative;
+            display: inline-block;
+            width: 50px; 
+            height: 65px; 
+        }
+        .merge-item img {
+            width: 50px; 
+            height: 50px; 
+            object-fit: cover; 
+            border-radius: 6px; 
+            border: 1px solid #444; 
+            cursor: pointer;
+        }
+        .merge-item input {
+            width: 100%;
+            box-sizing: border-box;
+            background: #000;
+            color: var(--accent);
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 10px;
+            text-align: center;
+            margin-top: 2px;
+        }
+        .merge-item input::-webkit-outer-spin-button,
+        .merge-item input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        /* -------------------------- */
 
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 15px; }
         button { 
@@ -49,7 +78,7 @@
             display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; 
             max-height: 300px; overflow-y: auto; padding-right: 5px;
         }
-        .scroll-box img { width: 100%; aspect-ratio: 1; border-radius: 4px; object-fit: cover; border: 1px solid transparent; }
+        .scroll-box img { width: 100%; aspect-ratio: 1; border-radius: 4px; object-fit: cover; border: 1px solid transparent; cursor: pointer; }
 
         /* Desktop Adjustments */
         @media (min-width: 900px) {
@@ -64,7 +93,7 @@
 <body>
 
 <header>
-    <h1>Structural Phenotype Mixer <small style="font-size: 10px; opacity: 0.5;">v5.5</small></h1>
+    <h1>Structural Phenotype Mixer <small style="font-size: 10px; opacity: 0.5;">v5.5 (Percentage Mod)</small></h1>
 </header>
 
 <div class="main-layout">
@@ -133,7 +162,6 @@
             img.src = `/faces_lowres/${filename.toLowerCase()}.jpg`;
             img.dataset.filename = filename;
             
-            // Touch/Click to add instead of just drag
             img.onclick = () => addToMerge(img.src);
             
             if (gender === 'm') maleContainer.appendChild(img);
@@ -143,24 +171,47 @@
 
     function addToMerge(src) {
         document.getElementById('placeholder-text').style.display = 'none';
-        if (mergeBox.querySelectorAll('img').length >= 20) return alert("Max 20 reached.");
+        if (mergeBox.querySelectorAll('.merge-item').length >= 20) return alert("Max 20 reached.");
+        
+        const div = document.createElement('div');
+        div.className = 'merge-item';
         
         const img = document.createElement('img');
         img.src = src;
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = '50'; // Default placeholder weight
+        input.placeholder = '%';
+
         // Click on image in box to remove it
         img.onclick = () => {
-            img.remove();
-            if(mergeBox.querySelectorAll('img').length === 0) {
+            div.remove();
+            if(mergeBox.querySelectorAll('.merge-item').length === 0) {
                 document.getElementById('placeholder-text').style.display = 'block';
             }
         };
-        mergeBox.appendChild(img);
+        
+        div.appendChild(img);
+        div.appendChild(input);
+        mergeBox.appendChild(div);
     }
 
-    // Process Average logic remains the same as your structural engine...
     async function processAverage() {
-        const imgsInBox = mergeBox.querySelectorAll('img');
-        if (imgsInBox.length < 2) return alert("Add at least 2 subjects.");
+        const itemsInBox = mergeBox.querySelectorAll('.merge-item');
+        if (itemsInBox.length < 2) return alert("Add at least 2 subjects.");
+
+        // 1. Calculate total weight to normalize percentages
+        let totalWeight = 0;
+        const inputData = [];
+        itemsInBox.forEach(el => {
+            const imgEl = el.querySelector('img');
+            const val = parseFloat(el.querySelector('input').value) || 0;
+            totalWeight += val;
+            inputData.push({ src: imgEl.src, rawWeight: val });
+        });
+
+        if (totalWeight <= 0) return alert("Total percentage must be greater than 0.");
 
         avgBtn.disabled = true;
         status.innerText = "Analyzing Face Geometry...";
@@ -169,9 +220,11 @@
         canvas.width = W; canvas.height = H;
 
         const subjects = [];
-        for (let el of imgsInBox) {
+        for (let data of inputData) {
+            if (data.rawWeight <= 0) continue; // Skip 0% items
+
             const tempImg = new Image();
-            tempImg.src = el.src;
+            tempImg.src = data.src;
             await new Promise(r => tempImg.onload = r);
             
             const det = await faceapi.detectSingleFace(tempImg).withFaceLandmarks();
@@ -180,7 +233,12 @@
                 const normCanvas = applyNormalization(tempImg, norm);
                 const detN = await faceapi.detectSingleFace(normCanvas).withFaceLandmarks();
                 if (detN) {
-                    subjects.push({ canvas: normCanvas, pts: addMetaPoints(detN.landmarks.positions, W, H) });
+                    const normalizedWeight = data.rawWeight / totalWeight; 
+                    subjects.push({ 
+                        canvas: normCanvas, 
+                        pts: addMetaPoints(detN.landmarks.positions, W, H),
+                        weight: normalizedWeight 
+                    });
                 }
             }
         }
@@ -191,19 +249,29 @@
             return;
         }
 
+        // 2. Calculate weighted mean points
         const meanPts = subjects[0].pts.map((_, i) => {
             let x = 0, y = 0;
-            subjects.forEach(s => { x += s.pts[i].x; y += s.pts[i].y; });
-            return { x: x / subjects.length, y: y / subjects.length };
+            subjects.forEach(s => { 
+                x += s.pts[i].x * s.weight; 
+                y += s.pts[i].y * s.weight; 
+            });
+            return { x, y };
         });
 
         status.innerText = `Synthesizing ${subjects.length} Subjects...`;
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = W; finalCanvas.height = H;
         const fCtx = finalCanvas.getContext('2d');
+        
+        // Pure black background needed for additive blending
+        fCtx.fillStyle = '#000000';
+        fCtx.fillRect(0, 0, W, H);
+        fCtx.globalCompositeOperation = 'lighter';
+
         const triangles = new Delaunator(meanPts.map(p => [p.x, p.y]).flat()).triangles;
 
-        subjects.forEach((s, idx) => {
+        subjects.forEach((s) => {
             const tCanvas = document.createElement('canvas');
             tCanvas.width = W; tCanvas.height = H;
             const tCtx = tCanvas.getContext('2d');
@@ -211,12 +279,17 @@
                 const tri = [triangles[i], triangles[i+1], triangles[i+2]];
                 drawSeamlessTriangle(tCtx, s.canvas, tri.map(j => s.pts[j]), tri.map(j => meanPts[j]));
             }
-            fCtx.globalAlpha = 1 / (idx + 1);
+            
+            // 3. Draw with exactly the weight percentage
+            fCtx.globalAlpha = s.weight; 
             fCtx.drawImage(tCanvas, 0, 0);
         });
 
+        // Reset the main canvas and draw the final result
         ctx.clearRect(0,0,W,H);
+        ctx.globalCompositeOperation = 'source-over'; // Reset to default
         ctx.drawImage(finalCanvas, 0, 0);
+        
         status.innerText = "Synthesis Successful.";
         avgBtn.disabled = false;
         document.getElementById('saveBtn').disabled = false;
