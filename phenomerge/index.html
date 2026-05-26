@@ -143,8 +143,8 @@
             const data = await res.json();
             populateBoxes(data);
 
-            status.innerText = "Neural Engine Ready.";
-            avgBtn.innerText = "GENERATE AVERAGE";
+            status.innerText = "Ready.";
+            avgBtn.innerText = "GENERATE NEW PHENOTYPE";
             avgBtn.disabled = false;
         } catch (err) {
             status.innerText = "Network Error: Check list.json";
